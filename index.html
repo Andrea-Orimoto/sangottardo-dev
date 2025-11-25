@@ -43,11 +43,9 @@
             <h1 class="text-3xl font-bold">Inventario San Gottardo</h1>
             <div class="flex gap-2">
                 <a id="adminLink" href="admin.html" class="hidden text-indigo-600 text-sm">Admin</a>
-                <!-- Login Button (near cart icon) -->
+                <!-- Login Button -->
                 <div id="googleSignIn" class="inline-block"></div>
                 <div id="userInfo" class="hidden text-sm text-gray-600 ml-2"></div>
-                <button id="cartBtn" class="bg-indigo-600 text-white px-4 py-2 rounded">Cart (<span
-                        id="cartCount">0</span>)</button>
                 <a href="admin.html" class="bg-gray-700 text-white px-4 py-2 rounded hidden" id="adminLink">Admin</a>
             </div>
 
@@ -67,17 +65,6 @@
         <!-- Load More Button -->
         <div class="text-center">
             <button id="loadMore" class="bg-indigo-600 text-white px-6 py-2 rounded hidden">Load More</button>
-        </div>
-
-        <!-- Cart sidebar -->
-        <div id="cartSidebar"
-            class="fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform translate-x-full transition-transform p-4 overflow-y-auto">
-            <button id="closeCart" class="float-right text-2xl">&times;</button>
-            <h2 class="text-xl font-bold mb-4">Your Cart</h2>
-            <div id="cartItems"></div>
-            <button id="saveCartBtn" class="mt-4 w-full bg-green-600 text-white py-2 rounded">Save Cart to
-                Server</button>
-            <p id="saveMsg" class="mt-2 text-sm"></p>
         </div>
 
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
@@ -100,7 +87,6 @@
                 <div class="p-4 border-t">
                     <h2 id="modalTitle" class="text-xl font-bold mb-2"></h2>
                     <div id="modalDesc" class="text-sm mb-4"></div>
-                    <button id="addToCartBtn" class="bg-indigo-600 text-white w-full py-2 rounded">Add to Cart</button>
                 </div>
             </div>
         </div>
@@ -121,8 +107,8 @@
             }
             document.getElementById('googleSignIn')?.classList.add('hidden');
 
-            // Load cart + check admin
-            loadCartFromDrive();
+            // check admin
+
             loadAdmins(); // NEW
         }
 

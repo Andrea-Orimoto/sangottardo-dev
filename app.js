@@ -13,7 +13,6 @@ const ADMIN_PASSWORD_HASH = '6972cf16a98ceb52957e425cdf7dc642eca2e97cc1aef848f53
 
 const PAGE_SIZE = 12;
 let allItems = [], displayed = 0;
-let cart = [];
 window.statusData = {}; // ADD THIS LINE
 
 // Use global googleUser from index.html
@@ -44,9 +43,6 @@ async function init() {
   renderGrid();
   console.log('INIT: Grid rendered');
   setupFilters();
-  renderCartCount();
-  document.getElementById('cartBtn').onclick = toggleCart;
-  document.getElementById('closeCart').onclick = () => toggleCart(false);
   document.getElementById('loadMore').onclick = () => renderGrid(true);
   document.getElementById('clearFilters').onclick = clearFilters;
   const adminLink = document.getElementById('adminLink');
@@ -282,49 +278,7 @@ async function init() {
     document.getElementById('loadMore').classList.toggle('hidden', displayed >= filtered.length);
   }
 
-  function renderCartCount() {
-    document.getElementById('cartCount').textContent = cart.length;
-  }
-
-  function toggleCart(show = null) {
-    const sidebar = document.getElementById('cartSidebar');
-    const isOpen = !sidebar.classList.contains('translate-x-full');
-    if (show === null) show = !isOpen;
-    sidebar.classList.toggle('translate-x-0', show);
-    sidebar.classList.toggle('translate-x-full', !show);
-    if (show) renderCartItems();
-  }
-
-  function renderCartItems() {
-    const container = document.getElementById('cartItems');
-    if (cart.length === 0) {
-      container.innerHTML = '<p class="text-gray-500 italic">Cart is empty</p>';
-      return;
-    }
-    container.innerHTML = cart.map(uuid => {
-      const item = allItems.find(i => i.UUID === uuid);
-      if (!item) return '';
-      return `
-      <div class="flex items-center gap-3 mb-3 p-2 border rounded">
-        <img src="images/${item.Photos[0]}" class="w-16 h-16 object-cover rounded" onerror="this.src='images/placeholder.jpg';">
-        <div class="flex-1">
-          <p class="font-medium text-sm">${item.Item}</p>
-          <p class="text-xs text-gray-600">${item.Location || ''}</p>
-        </div>
-        <button class="text-red-600 text-sm" onclick="removeFromCart('${uuid}')">Remove</button>
-      </div>
-    `;
-    }).join('');
-  }
-
-  window.removeFromCart = function (uuid) {
-    cart = cart.filter(id => id !== uuid);
-    renderCartCount();
-    renderCartItems();
-    saveCartToDrive();
-  };
-
-  // ====== openModal() — FULLY RESTORED ======
+  // ====== openModal() ======
   function openModal(item) {
     document.getElementById('modalTitle').textContent = item.Item;
     document.getElementById('modalDesc').innerHTML = `
@@ -344,17 +298,6 @@ async function init() {
       slide.innerHTML = `<img src="images/${src}" alt="${item.Item} - ${idx + 1}" class="max-w-full max-h-full object-contain" onerror="this.src='images/placeholder.jpg'">`;
       wrapper.appendChild(slide);
     });
-
-    const addBtn = document.getElementById('addToCartBtn');
-    const inCart = cart.includes(item.UUID);
-    addBtn.disabled = inCart || item.Status !== 'Attivo';
-    addBtn.textContent =
-      inCart ? 'Added' :
-        item.Status === 'Venduto' ? 'Sold' :
-          item.Status === 'Prenotato' ? 'Reserved' :
-            'Add to Cart';
-    addBtn.className = 'w-full py-2 rounded text-white font-medium ' + (item.Status !== 'Attivo' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600');
-    addBtn.onclick = () => addToCart(item.UUID);
 
     document.getElementById('modal').classList.remove('hidden');
     document.getElementById('closeModal').onclick = closeModal;
@@ -378,55 +321,10 @@ async function init() {
 
   function signOut() {
     gapi.auth2.getAuthInstance().signOut().then(() => {
-      googleUser = null; cart = []; renderCartCount(); renderCartItems();
+      googleUser = null;
       document.getElementById('userInfo').classList.add('hidden');
       document.getElementById('googleSignIn').classList.remove('hidden');
     });
-  }
-
-  // Cart: Google Drive
-  async function saveCartToDrive() {
-    if (!window.googleUser) return;
-    const accessToken = window.googleUser.getAuthResponse().access_token;
-    const fileContent = JSON.stringify({ items: cart, savedAt: new Date().toISOString() });
-    const fileName = 'sangottardo-cart.json';
-    let fileId = null;
-    try {
-      const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      const listData = await listRes.json();
-      fileId = listData.files[0]?.id;
-    } catch (e) { }
-    const metadata = { name: fileName, mimeType: 'application/json', parents: ['appDataFolder'] };
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', new Blob([fileContent], { type: 'application/json' }));
-    const url = fileId ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-    await fetch(url, { method: fileId ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
-  }
-
-  async function loadCartFromDrive() {
-    if (!window.googleUser) return;
-    const accessToken = window.googleUser.getAuthResponse().access_token;
-    try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='sangottardo-cart.json' and trashed=false`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      const data = await res.json();
-      if (data.files.length > 0) {
-        const fileId = data.files[0].id;
-        const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
-        const fileData = await fileRes.json();
-        cart = fileData.items || [];
-        renderCartCount(); renderCartItems();
-      }
-    } catch (e) { }
-  }
-
-  function addToCart(uuid) {
-    const item = allItems.find(i => i.UUID === uuid);
-    if (!cart.includes(uuid) && item.Status === 'Attivo') {
-      cart.push(uuid);
-      renderCartCount(); renderCartItems();
-      saveCartToDrive();
-    }
   }
 
   async function saveStatus(uuid, value) {
@@ -474,22 +372,6 @@ async function init() {
       return data.sha;
     } catch (e) { return null; }
   }
-
-  // Admin: View All Carts
-  window.loadAllCarts = async function () {
-    const res = await fetch('carts/?_=' + Date.now());
-    const text = await res.text();
-    const files = text.match(/href="([^"]+\.json)"/g)?.map(m => m.match(/href="([^"]+)"/)[1]) || [];
-    const container = document.getElementById('allCarts');
-    container.innerHTML = '<h3 class="text-lg font-bold mb-2">All Saved Carts</h3>';
-    for (const file of files) {
-      const data = await (await fetch(file)).json();
-      const div = document.createElement('div');
-      div.className = 'p-2 border-b';
-      div.innerHTML = `<strong>${new Date(data.savedAt).toLocaleString()}</strong>: ${data.items.length} items`;
-      container.appendChild(div);
-    }
-  };
 }
 
 let admins = [];

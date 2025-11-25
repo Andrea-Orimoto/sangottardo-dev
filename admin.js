@@ -3,7 +3,6 @@ const REPO = 'Andrea-Orimoto/sangottardo';
 const GITHUB_TOKEN = 'YOUR_PAT_HERE'; // <-- REPLACE
 
 let allItems = [];
-let carts = [];
 let statusData = {};
 
 // === UTILS ===
@@ -103,52 +102,6 @@ async function updateStatus(uuid, newStatus) {
   }
 }
 
-// === LOAD CARTS ===
-async function loadCarts() {
-  try {
-    const resp = await fetch('data/carts.json');
-    carts = resp.ok ? await resp.json() : [];
-    renderCarts();
-  } catch (e) {
-    console.error("Failed to load carts", e);
-  }
-}
-
-function renderCarts() {
-  const container = document.getElementById('cartsContainer');
-  if (carts.length === 0) {
-    container.innerHTML = '<p class="text-gray-500">No carts yet.</p>';
-    return;
-  }
-
-  container.innerHTML = carts.map((cart, i) => `
-    <div class="border p-3 rounded">
-      <p class="font-semibold">#${i + 1} — ${cart.userName} (${cart.userEmail})</p>
-      <p class="text-xs text-gray-600">${new Date(cart.timestamp).toLocaleString()}</p>
-      <div class="mt-2 text-sm">
-        ${cart.items.map(it => `<div class="flex justify-between"><span>${it.Item}</span><span>€${it['Purchase Price']}</span></div>`).join('')}
-      </div>
-      <button onclick="deleteCart(${i})" class="mt-2 bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
-    </div>
-  `).join('');
-}
-
-window.deleteCart = async function (i) {
-  if (!confirm('Delete this cart?')) return;
-  carts.splice(i, 1);
-  await saveCarts();
-  renderCarts();
-};
-
-async function saveCarts() {
-  const sha = await getFileSha('data/carts.json');
-  await fetch(`https://api.github.com/repos/${REPO}/contents/data/carts.json`, {
-    method: 'PUT',
-    headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'Update carts', content: btoa(JSON.stringify(carts, null, 2)), sha })
-  });
-}
-
 // === ADD ADMIN ===
 document.getElementById('addAdminBtn')?.addEventListener('click', async () => {
   const email = document.getElementById('newAdminEmail').value.trim();
@@ -187,9 +140,7 @@ document.getElementById('addAdminBtn')?.addEventListener('click', async () => {
 document.addEventListener('DOMContentLoaded', () => {
   initGoogleUser();
   loadItemsAndStatus();
-  loadCarts();
 
   document.getElementById('refreshItems').onclick = loadItemsAndStatus;
-  document.getElementById('refreshCarts').onclick = loadCarts;
   document.getElementById('logout').onclick = () => { localStorage.clear(); location.href = 'index.html'; };
 });
