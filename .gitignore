@@ -1,2 +1,4 @@
 carts/*
 !carts/.gitkeep
+data/preferiti.json
+data/status.json
