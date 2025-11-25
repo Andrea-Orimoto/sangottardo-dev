@@ -12,6 +12,7 @@
     <meta name="google-signin-client_id"
         content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="auth.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
@@ -97,98 +98,6 @@
                 }
             }
         });
-    </script>
-
-    <script>
-        // Global user object (shared with app.js if needed later)
-        window.currentUser = null;
-
-        function handleCredentialResponse(response) {
-            const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            window.currentUser = {
-                name: payload.name,
-                email: payload.email,
-                picture: payload.picture
-            };
-
-            localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
-            updateAuthUI();
-        }
-
-        function logout() {
-            window.currentUser = null;
-            localStorage.removeItem('sgUser');
-            google.accounts.id.disableAutoSelect();
-
-            updateAuthUI();           // ← This refreshes the UI correctly
-            // No redirect needed here — user stays on current page
-        }
-
-        function updateAuthUI() {
-            const userInfo = document.getElementById('userInfo');
-            const userPhoto = document.getElementById('userPhoto');
-            const userName = document.getElementById('userName');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const signInDiv = document.getElementById('googleSignInButton');
-            const adminBtn = document.getElementById('adminBtn');
-
-            if (window.currentUser) {
-                // — LOGGED IN —
-                userName.textContent = window.currentUser.name.split(' ')[0];
-                userPhoto.src = window.currentUser.picture;
-                userInfo.classList.remove('hidden');
-                logoutBtn.classList.remove('hidden');
-
-                // Hide the Google Sign-In button completely
-                signInDiv.innerHTML = '';
-                signInDiv.classList.add('hidden');
-
-                // Show Admin button only for you
-                if (adminBtn && window.currentUser.email === 'andrea.orimoto@gmail.com') {
-                    adminBtn.classList.remove('hidden');
-                }
-
-            } else {
-                // — NOT LOGGED IN —
-                userInfo.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                if (adminBtn) adminBtn.classList.add('hidden');
-
-                // Show the Google Sign-In button
-                signInDiv.classList.remove('hidden');
-                signInDiv.innerHTML = ''; // clear any old button
-                google.accounts.id.renderButton(signInDiv, {
-                    theme: 'outline',
-                    size: 'large',
-                    text: 'signin_with',
-                    shape: 'rectangular',
-                    logo_alignment: 'left'
-                });
-            }
-        }
-
-        window.onload = function () {
-            // Restore session if exists
-            const saved = localStorage.getItem('sgUser');
-            if (saved) {
-                window.currentUser = JSON.parse(saved);
-            }
-
-            google.accounts.id.initialize({
-                client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
-                callback: handleCredentialResponse
-            });
-
-            updateAuthUI();
-            google.accounts.id.renderButton(document.getElementById('googleSignInButton'), {
-                theme: 'outline', size: 'large'
-            });
-
-            // Optional: show One Tap prompt
-            google.accounts.id.prompt();
-
-            document.getElementById('logoutBtn').addEventListener('click', logout);
-        };
     </script>
     <script src="app.js"></script>
 </body>
