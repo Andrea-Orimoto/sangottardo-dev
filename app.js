@@ -2,15 +2,15 @@ console.log("APP.JS LOADED SUCCESSFULLY");
 
 window.loadPreferiti = loadPreferiti;  // ← expose it
 
+// Trasforma email in chiave valida per Firebase (sostituisce . con _)
+function getEmailKey(email) {
+  return email.replace(/\./g, '_');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log("DOM READY — CALLING INIT()");
   init();
 });
-
-// ==== CONFIG ====
-const REPO = 'Andrea-Orimoto/sangottardo-dev';
-const GITHUB_TOKEN = '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';
-// =================================
 
 const PAGE_SIZE = 12;
 let allItems = [], displayed = 0;
@@ -95,27 +95,91 @@ async function loadCSVAndStatus() {
 }
 
 // ============ PREFERITI SYSTEM ============
-async function loadPreferiti() {
-  try {
-    // USA IL RAW GITHUB URL DIRETTO — bypassa CORS e cache per sempre
-    const resp = await fetch('https://raw.githubusercontent.com/Andrea-Orimoto/sangottardo-dev/main/data/preferiti.json?t=' + Date.now());
+// Firebase config — incolla la tua qui
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCq_W69Eab67KpnX8HTEkzRHBW7TB_6daQ",
+  authDomain: "san-gottardo-preferiti.firebaseapp.com",
+  databaseURL: "https://san-gottardo-preferiti-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "san-gottardo-preferiti",
+  storageBucket: "san-gottardo-preferiti.firebasestorage.app",
+  messagingSenderId: "1012486211234",
+  appId: "1:1012486211234:web:04b3bb02b84cb19ef839fb",
+  measurementId: "G-LSLDZBSJFR"
+};
 
-    if (resp.ok) {
-      const serverData = await resp.json();
-      window.preferitiData = { ...serverData };
-      console.log("Preferiti caricati da raw.githubusercontent.com:", window.preferitiData);
-    } else {
-      window.preferitiData = {};
-    }
-  } catch (e) {
-    console.warn("Errore caricamento preferiti — uso cache locale", e);
+// Inizializza Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+
+// Carica preferiti da Firebase
+// ---- FUNZIONE 1: loadPreferiti (sostituisci tutta) ----
+async function loadPreferiti() {
+  if (!window.currentUser) {
     window.preferitiData = {};
+    renderGrid();
+    renderPreferitiSidebar();
+    updatePreferitiCount();
+    return;
   }
 
-  // SEMPRE renderizza dopo il caricamento
+  const key = window.currentUser.email.replace(/\./g, '_');
+  try {
+    const snapshot = await db.ref('preferiti/' + key).once('value');
+    const data = snapshot.val();
+    window.preferitiData[window.currentUser.email] = data || [];
+    console.log("Preferiti caricati da Firebase:", window.preferitiData[window.currentUser.email]);
+  } catch (e) {
+    console.warn("Firebase non raggiungibile — uso lista vuota", e);
+    window.preferitiData[window.currentUser.email] = [];
+  }
+
   renderGrid();
   renderPreferitiSidebar();
   updatePreferitiCount();
+}
+
+// Salva su Firebase (istantaneo!)
+// ---- FUNZIONE 2: toggleFavorite (sostituisci tutta) ----
+async function toggleFavorite(uuid) {
+  if (!window.currentUser) {
+    alert("Devi effettuare il login per salvare i Preferiti");
+    return;
+  }
+
+  const email = window.currentUser.email;
+  const key = email.replace(/\./g, '_');
+  let list = (window.preferitiData[email] || []).slice();
+
+  const index = list.indexOf(uuid);
+  if (index > -1) {
+    list.splice(index, 1);
+  } else {
+    list.push(uuid);
+  }
+
+  window.preferitiData[email] = list;
+  renderGrid();
+  renderPreferitiSidebar();
+  updatePreferitiCount();
+
+  // Salva su Firebase — istantaneo
+  db.ref('preferiti/' + key).set(list)
+    .then(() => console.log("Preferiti salvati su Firebase"))
+    .catch(e => console.warn("Errore salvataggio Firebase:", e));
+}
+
+// Integra con il tuo login esistente
+// In auth.js, in handleCredentialResponse, dopo window.currentUser = ... :
+auth.signInWithCustomToken(window.currentUser.id).catch(() => { });  // Linka al tuo Google user
+
+// Aggiorna isFavorite per usare Firebase data
+function isFavorite(uuid) {
+  if (!window.currentUser) return false;
+  const list = window.preferitiData[window.currentUser.email] || [];
+  return list.includes(uuid);
 }
 
 async function handleHeartClick(uuid) {
@@ -128,90 +192,12 @@ async function handleHeartClick(uuid) {
   await toggleFavorite(uuid);
 }
 
-function isFavorite(uuid) {
-  // console.log('isFavorite called for UUID:', uuid, 'user:', window.currentUser?.email, 'list length:', (window.preferitiData[window.currentUser?.email] || []).length);
-
-  if (!window.currentUser) return false;
-  const list = window.preferitiData[window.currentUser.email] || [];
-  return list.includes(uuid);
-}
 
 // ============ FINAL PREFERITI SYSTEM — NO MORE CONFLICTS ============
 let isSavingPreferiti = false;
 let saveQueue = [];
 
-async function toggleFavorite(uuid) {
-  if (!window.currentUser) {
-    alert("Devi effettuare il login per salvare i Preferiti");
-    return;
-  }
 
-  const email = window.currentUser.email;
-  if (!window.preferitiData[email]) window.preferitiData[email] = [];
-
-  const wasFavorite = window.preferitiData[email].includes(uuid);
-  if (wasFavorite) {
-    window.preferitiData[email] = window.preferitiData[email].filter(id => id !== uuid);
-  } else {
-    window.preferitiData[email].push(uuid);
-  }
-
-  // Optimistic UI — instant feedback
-  renderGrid();
-  renderPreferitiSidebar();
-  updatePreferitiCount();
-
-  // Queue the save — only one at a time
-  saveQueue.push({ uuid, wasFavorite });
-  if (isSavingPreferiti) return;  // already saving
-
-  isSavingPreferiti = true;
-
-  while (saveQueue.length > 0) {
-    const { uuid: currentUuid } = saveQueue[0];
-
-    try {
-      // Always get the VERY latest SHA
-      const sha = await getFileSha('data/preferiti.json');
-      const content = btoa(JSON.stringify(window.preferitiData, null, 2));
-
-      console.log('Saving preferitiData:', window.preferitiData);
-      console.log('Content to send:', content);  // base64, but log the JSON first
-
-      const response = await fetch(`https://api.github.com/repos/${REPO}/contents/data/preferiti.json`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${GITHUB_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json',
-          'X-GitHub-Api-Version': '2022-11-28'
-        },
-        body: JSON.stringify({
-          message: `Preferiti: ${email} ${wasFavorite ? 'rimosso' : 'aggiunto'} ${uuid}`,
-          content,
-          ...(sha && { sha })  // ← THIS: Only include 'sha' if it's a string (not null)
-        })
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`GitHub ${response.status}: ${err}`);
-      }
-
-      // Success — remove from queue
-      saveQueue.shift();
-      console.log("Preferiti salvati con successo");
-
-    } catch (e) {
-      console.error("Save failed (will retry on next action):", e);
-      alert("Problema di sincronizzazione — i preferiti sono salvati localmente. Continua a usare il sito, si sincronizzeranno automaticamente.");
-      // Do NOT revert — keep optimistic state
-      break;  // stop trying, wait for next click
-    }
-  }
-
-  isSavingPreferiti = false;
-}
 
 function updatePreferitiCount() {
   const count = window.currentUser ? (window.preferitiData[window.currentUser.email] || []).length : 0;
@@ -475,19 +461,4 @@ function closeModal() {
   document.getElementById('modal').classList.add('hidden');
   // Clean heart from modal
   document.querySelector('.swiper button')?.remove();
-}
-
-async function getFileSha(path) {
-  try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/contents/data/preferiti.json`, {
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-      }
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.sha;
-  } catch (e) {
-    return null;
-  }
 }
