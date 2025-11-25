@@ -8,6 +8,11 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="style.css?6" rel="stylesheet">
 
+    <!-- Google Sign-In -->
+    <meta name="google-signin-client_id"
+        content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 </head>
@@ -16,10 +21,22 @@
     <div class="container mx-auto p-4">
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold">Inventario San Gottardo</h1>
-            <div class="flex gap-2">
-                <div id="userInfo" class="hidden text-sm text-gray-600 ml-2"></div>
-            </div>
+            <div class="flex items-center gap-4">
+                <!-- User info (shown when logged in) -->
+                <div id="userInfo" class="hidden items-center gap-3">
+                    <img id="userPhoto" class="w-9 h-9 rounded-full border-2 border-indigo-600" src="" alt="User">
+                    <span id="userName" class="text-sm font-medium text-gray-700"></span>
+                </div>
 
+                <!-- Google Sign-In Button (shown when NOT logged in) -->
+                <div id="googleSignInButton"></div>
+
+                <!-- Logout Button (shown when logged in) -->
+                <button id="logoutBtn"
+                    class="hidden bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm transition">
+                    Logout
+                </button>
+            </div>
         </header>
 
         <!-- Filters -->
@@ -80,6 +97,85 @@
                 }
             }
         });
+    </script>
+
+    <script>
+        // Global user object (shared with app.js if needed later)
+        window.currentUser = null;
+
+        function handleCredentialResponse(response) {
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            window.currentUser = {
+                name: payload.name,
+                email: payload.email,
+                picture: payload.picture
+            };
+
+            localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
+            updateAuthUI();
+        }
+
+        function logout() {
+            window.currentUser = null;
+            localStorage.removeItem('sgUser');
+
+            // Important: revoke Google session so One Tap doesn’t auto-login again
+            google.accounts.id.disableAutoSelect();
+
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            const userInfo = document.getElementById('userInfo');
+            const userPhoto = document.getElementById('userPhoto');
+            const userName = document.getElementById('userName');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const signInDiv = document.getElementById('googleSignInButton');
+
+            if (window.currentUser) {
+                userName.textContent = window.currentUser.name.split(' ')[0];
+                userPhoto.src = window.currentUser.picture;
+                userInfo.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                signInDiv.innerHTML = '';                    // hide button when logged in
+            } else {
+                userInfo.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+
+                // RE-RENDER THE GOOGLE BUTTON (this is the missing piece!)
+                signInDiv.innerHTML = '';
+                google.accounts.id.renderButton(signInDiv, {
+                    theme: 'outline',
+                    size: 'large',
+                    text: 'signin_with',
+                    shape: 'rectangular',
+                    logo_alignment: 'left'
+                });
+            }
+        }
+
+        window.onload = function () {
+            // Restore session if exists
+            const saved = localStorage.getItem('sgUser');
+            if (saved) {
+                window.currentUser = JSON.parse(saved);
+            }
+
+            google.accounts.id.initialize({
+                client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
+                callback: handleCredentialResponse
+            });
+
+            updateAuthUI();
+            google.accounts.id.renderButton(document.getElementById('googleSignInButton'), {
+                theme: 'outline', size: 'large'
+            });
+
+            // Optional: show One Tap prompt
+            google.accounts.id.prompt();
+
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+        };
     </script>
     <script src="app.js"></script>
 </body>

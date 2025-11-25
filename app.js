@@ -1,7 +1,5 @@
-console.log("APP.JS LOADED SUCCESSFULLY");
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("DOM READY — CALLING INIT()");
   init();
 });
 
