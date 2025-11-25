@@ -8,21 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==== CONFIG ==== 
 const REPO = 'Andrea-Orimoto/sangottardo-dev';
 const GITHUB_TOKEN = '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';
-const ADMIN_PASSWORD_HASH = '6972cf16a98ceb52957e425cdf7dc642eca2e97cc1aef848f530509894362d32'; // default "password"
 // =================================
 
 const PAGE_SIZE = 12;
 let allItems = [], displayed = 0;
 window.statusData = {}; // ADD THIS LINE
 
-// Use global googleUser from index.html
-
 async function init() {
-
-  // TEMP: FORCE ADMIN (REMOVE LATER)
-  localStorage.setItem('adminToken', 'debug-admin');
-
-  console.log('INIT: Starting...');
   try {
     await loadCSVAndStatus();
     console.log("INIT: Items loaded →", allItems.length);
@@ -34,7 +26,6 @@ async function init() {
     }
     return;
   }
-  await loadAdmins();
   if (allItems.length === 0) {
     console.warn("NO ITEMS — CHECK CSV");
     document.getElementById('grid').innerHTML = '<p class="text-center text-gray-500">No items found. Check data/items.csv</p>';
@@ -45,11 +36,7 @@ async function init() {
   setupFilters();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
   document.getElementById('clearFilters').onclick = clearFilters;
-  const adminLink = document.getElementById('adminLink');
-  if (adminLink && localStorage.getItem('adminToken')) {
-    adminLink.classList.remove('hidden');
-  }
-
+  
   async function loadCSVAndStatus() {
     try {
       // Load items.csv
@@ -217,9 +204,7 @@ async function init() {
       div.className = 'bg-white rounded overflow-hidden shadow cursor-pointer hover:shadow-lg transition-shadow';
 
       // === STATUS BADGE & DROPDOWN (VISIBLE TO ALL) ===
-      // === STATUS BADGE (NON-ADMIN) OR DROPDOWN (ADMIN) ===
       const isSold = (item.Status || '').trim() === 'Venduto';
-      const isAdmin = !!localStorage.getItem('adminToken');
 
       let statusHtml;
       if (false) {
@@ -317,16 +302,6 @@ async function init() {
     document.getElementById('modal').classList.add('hidden');
   }
 
-  // Google Login
-
-  function signOut() {
-    gapi.auth2.getAuthInstance().signOut().then(() => {
-      googleUser = null;
-      document.getElementById('userInfo').classList.add('hidden');
-      document.getElementById('googleSignIn').classList.remove('hidden');
-    });
-  }
-
   async function saveStatus(uuid, value) {
     if (!localStorage.getItem('adminToken')) {
       alert('Only admins can change status');
@@ -371,32 +346,6 @@ async function init() {
       const data = await res.json();
       return data.sha;
     } catch (e) { return null; }
-  }
-}
-
-let admins = [];
-
-async function loadAdmins() {
-  try {
-    const resp = await fetch('data/admins.json');
-    if (resp.ok) {
-      admins = await resp.json();
-      console.log("Admins loaded:", admins);
-      checkAdminAccess();
-    }
-  } catch (e) {
-    console.error("Failed to load admins.json", e);
-  }
-}
-
-function checkAdminAccess() {
-  if (!googleUser) return;
-  const profile = googleUser.getBasicProfile();
-  const email = profile.getEmail();
-  const adminLink = document.getElementById('adminLink');
-  if (admins.includes(email) && adminLink) {
-    adminLink.classList.remove('hidden');
-    console.log("ADMIN ACCESS GRANTED:", email);
   }
 }
 

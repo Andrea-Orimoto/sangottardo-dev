@@ -8,33 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="style.css?6" rel="stylesheet">
 
-    <!-- Google Sign-In SDK -->
-    <meta name="google-signin-client_id"
-        content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-
-    <script>
-        function renderGoogleButton() {
-            if (!window.gapi) {
-                setTimeout(renderGoogleButton, 100);
-                return;
-            }
-            gapi.load('signin2', function () {
-                gapi.signin2.render('googleSignIn', {
-                    scope: 'profile email https://www.googleapis.com/auth/drive.appdata',
-                    width: 200,
-                    height: 40,
-                    longtitle: true,
-                    theme: 'dark',
-                    onsuccess: onGoogleSignIn,
-                    onfailure: function () { console.log('Google sign-in failed'); }
-                });
-            });
-        }
-    </script>
-    <script src="https://apis.google.com/js/platform.js?onload=renderGoogleButton" async defer></script>
-    <script src="https://apis.google.com/js/api.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-800">
@@ -42,11 +17,7 @@
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold">Inventario San Gottardo</h1>
             <div class="flex gap-2">
-                <a id="adminLink" href="admin.html" class="hidden text-indigo-600 text-sm">Admin</a>
-                <!-- Login Button -->
-                <div id="googleSignIn" class="inline-block"></div>
                 <div id="userInfo" class="hidden text-sm text-gray-600 ml-2"></div>
-                <a href="admin.html" class="bg-gray-700 text-white px-4 py-2 rounded hidden" id="adminLink">Admin</a>
             </div>
 
         </header>
@@ -93,51 +64,6 @@
 
     </div>
 
-    <script>
-        // === GLOBAL FUNCTIONS FOR GOOGLE SDK ===
-        let googleUser = null;
-
-        function onGoogleSignIn(googleUserProfile) {
-            window.googleUser = googleUserProfile;
-            const profile = googleUserProfile.getBasicProfile();
-            const userInfo = document.getElementById('userInfo');
-            if (userInfo) {
-                userInfo.innerHTML = `Hi, ${profile.getName()} (${profile.getEmail()})`;
-                userInfo.classList.remove('hidden');
-            }
-            document.getElementById('googleSignIn')?.classList.add('hidden');
-
-            // check admin
-
-            loadAdmins(); // NEW
-        }
-
-        function renderGoogleButton() {
-            if (!window.gapi) {
-                setTimeout(renderGoogleButton, 100);
-                return;
-            }
-            gapi.load('signin2', function () {
-                gapi.signin2.render('googleSignIn', {
-                    scope: 'profile email https://www.googleapis.com/auth/drive.appdata',
-                    width: 200,
-                    height: 40,
-                    longtitle: true,
-                    theme: 'dark',
-                    onsuccess: onGoogleSignIn,
-                    onfailure: function () { console.log('Google sign-in failed'); }
-                });
-            });
-        }
-    </script>
-
-    <!-- Google SDK -->
-    <script src="https://apis.google.com/js/platform.js?onload=renderGoogleButton" async defer></script>
-    <script src="https://apis.google.com/js/api.js"></script>
-
-    <script>
-        console.log("APP.JS TEST: This should appear");
-    </script>
     <script>
         // Read URL params on load
         document.addEventListener('DOMContentLoaded', () => {
