@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="flex items-center justify-center h-screen bg-gray-100">
+  <div class="bg-white p-8 rounded shadow w-80">
+    <h2 class="text-2xl mb-4">Admin Login</h2>
+    <input type="password" id="pw" placeholder="Password" class="w-full p-2 border mb-4">
+    <button id="loginBtn" class="w-full bg-indigo-600 text-white py-2 rounded">Login</button>
+    <p id="msg" class="mt-2 text-sm text-red-600"></p>
+  </div>
+  <script>
+    const TARGET_HASH = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'; // "password"
+    document.getElementById('loginBtn').onclick = async () => {
+      const val = document.getElementById('pw').value;
+      const enc = new TextEncoder().encode(val);
+      const hash = await crypto.subtle.digest('SHA-256', enc);
+      const hashHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+      if (hashHex === TARGET_HASH) {
+        localStorage.setItem('adminToken', 'admin');
+        location.href = 'admin.html';
+      } else {
+        document.getElementById('msg').textContent = 'Wrong password';
+      }
+    };
+  </script>
+</body>
+</html>

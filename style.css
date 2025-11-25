@@ -1,0 +1,163 @@
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Grid cards */
+#grid>div {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s;
+}
+
+#grid>div:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+#grid>div>div:first-child {
+    flex-shrink: 0;
+}
+
+/* CAROUSEL — NO BLANKS, FULL HEIGHT */
+#carouselTrack {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    transition: transform 0.3s ease-in-out;
+    overflow: hidden;
+    background: #f9fafb;
+    touch-action: pan-x;
+}
+
+#carouselTrack>div {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    padding: 0;
+    margin: 0;
+}
+
+/* CAROUSEL — PURE CSS, NO TAILWIND */
+#carouselTrack {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    transition: transform 0.3s ease-in-out;
+    overflow: hidden;
+    background: #f9fafb;
+    touch-action: pan-x;
+}
+
+#carouselTrack>div {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    padding: 0;
+    margin: 0;
+}
+
+#carouselTrack img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* Dots */
+.carousel-dot {
+    width: 10px;
+    height: 10px;
+    background: #bbb;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.carousel-dot.active {
+    background: #4f46e5;
+}
+
+/* NO PAGE SCROLL */
+#modal {
+    overscroll-behavior: contain;
+    touch-action: none;
+}
+
+/* Swiper Arrows — MINIMAL, NO BACKGROUND */
+.swiper-button-next,
+.swiper-button-prev {
+    color: #6366f1 !important;
+    /* Softer indigo */
+    background: none !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin-top: -22px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+    color: #4f46e5 !important;
+    transform: scale(1.15);
+}
+
+.swiper-button-next::after,
+.swiper-button-prev::after {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* Center ALL images (portrait & landscape) */
+/* SUBTLE DARKER BACKGROUND — ELEGANT & CLEAN */
+.swiper-slide {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #e5e7eb !important; /* Soft medium gray (was #f9fafb) */
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .swiper-slide img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+.swiper-pagination-bullet {
+    background: #cbd5e1;
+    opacity: 1;
+}
+
+.swiper-pagination-bullet-active {
+    background: #6366f1 !important;
+}
+
+/* Photo count badge — subtle & premium */
+.grid-photo-badge {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+  }

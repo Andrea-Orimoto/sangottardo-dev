@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sangottardo Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-100 p-4">
+  <div class="container mx-auto max-w-6xl">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-indigo-700">Sangottardo Admin</h1>
+      <div class="flex items-center gap-3">
+        <div id="userInfo" class="text-sm text-gray-600"></div>
+        <button id="logout" class="bg-red-600 text-white px-4 py-2 rounded text-sm">Logout</button>
+      </div>
+    </div>
+
+    <!-- Add Admin -->
+    <div class="bg-white p-4 rounded shadow mb-6">
+      <h3 class="text-lg font-semibold mb-2">Add Admin</h3>
+      <div class="flex gap-2">
+        <input type="email" id="newAdminEmail" placeholder="new.admin@gmail.com" class="p-2 border rounded flex-1">
+        <button id="addAdminBtn" class="bg-green-600 text-white px-4 py-2 rounded">Add</button>
+      </div>
+      <p id="adminMsg" class="mt-2 text-sm"></p>
+    </div>
+
+    <!-- Items Table -->
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl mb-3">Items & Status</h2>
+      <div class="mb-3">
+        <button id="refreshItems" class="bg-gray-600 text-white px-3 py-1 rounded text-sm">Refresh</button>
+      </div>
+      <div id="itemsTable" class="overflow-x-auto">
+        <table class="min-w-full table-auto text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left">Item</th>
+              <th class="px-4 py-2 text-left">Location</th>
+              <th class="px-4 py-2 text-left">Price</th>
+              <th class="px-4 py-2 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Saved Carts -->
+    <div class="bg-white p-4 rounded shadow mt-6">
+      <h2 class="text-xl mb-3">Saved Carts</h2>
+      <button id="refreshCarts" class="mb-2 bg-gray-600 text-white px-3 py-1 rounded text-sm">Refresh</button>
+      <div id="cartsContainer" class="space-y-4 max-h-96 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
