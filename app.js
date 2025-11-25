@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==== CONFIG ====
 const REPO = 'Andrea-Orimoto/sangottardo-dev';
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 // =================================
 
 const PAGE_SIZE = 12;
