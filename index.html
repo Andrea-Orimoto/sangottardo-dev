@@ -43,6 +43,20 @@
                     class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded font-medium text-sm transition shadow-md">
                     Admin
                 </button>
+
+                <!-- Preferiti button in header -->
+                <button id="preferitiToggle"
+                    class="relative hidden bg-pink-600 hover:bg-pink-700 text-white px-5 py-2 rounded font-medium text-sm transition shadow-md">
+                    <span class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        Preferiti
+                        <span id="preferitiCount"
+                            class="bg-white text-pink-700 text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">0</span>
+                    </span>
+                </button>
             </div>
         </header>
 
@@ -106,6 +120,28 @@
         });
     </script>
     <script src="app.js"></script>
+
+    <!-- Preferiti Sidebar -->
+    <div id="preferitiSidebar"
+        class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 overflow-y-auto">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-xl font-bold">I miei Preferiti</h2>
+            <button id="closePreferiti" class="text-gray-500 hover:text-gray-800 text-3xl">×</button>
+        </div>
+        <div id="preferitiList" class="divide-y"></div>
+    </div>
+    <div id="preferitiOverlay" class="fixed inset-0 bg-black/50 hidden z-40"
+        onclick="document.getElementById('preferitiSidebar').classList.add('-translate-x-full')"></div>
+
+    <script>
+        // Show overlay when sidebar opens
+        document.getElementById('preferitiToggle')?.addEventListener('click', () => {
+            document.getElementById('preferitiOverlay').classList.remove('hidden');
+        });
+        document.getElementById('closePreferiti')?.addEventListener('click', () => {
+            document.getElementById('preferitiOverlay').classList.add('hidden');
+        });
+    </script>
 </body>
 
 </html>

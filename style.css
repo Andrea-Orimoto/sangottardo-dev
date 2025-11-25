@@ -163,3 +163,5 @@
   }
 
   #googleSignInButton.hidden { display: none !important; }
+
+  #preferitiOverlay.hidden { display: none; }
