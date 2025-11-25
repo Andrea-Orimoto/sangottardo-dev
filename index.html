@@ -118,11 +118,10 @@
         function logout() {
             window.currentUser = null;
             localStorage.removeItem('sgUser');
-
-            // Important: revoke Google session so One Tap doesn’t auto-login again
             google.accounts.id.disableAutoSelect();
 
-            updateAuthUI();
+            updateAuthUI();           // ← This refreshes the UI correctly
+            // No redirect needed here — user stays on current page
         }
 
         function updateAuthUI() {
@@ -131,19 +130,33 @@
             const userName = document.getElementById('userName');
             const logoutBtn = document.getElementById('logoutBtn');
             const signInDiv = document.getElementById('googleSignInButton');
+            const adminBtn = document.getElementById('adminBtn');
 
             if (window.currentUser) {
+                // — LOGGED IN —
                 userName.textContent = window.currentUser.name.split(' ')[0];
                 userPhoto.src = window.currentUser.picture;
                 userInfo.classList.remove('hidden');
                 logoutBtn.classList.remove('hidden');
-                signInDiv.innerHTML = '';                    // hide button when logged in
+
+                // Hide the Google Sign-In button completely
+                signInDiv.innerHTML = '';
+                signInDiv.classList.add('hidden');
+
+                // Show Admin button only for you
+                if (adminBtn && window.currentUser.email === 'andrea.orimoto@gmail.com') {
+                    adminBtn.classList.remove('hidden');
+                }
+
             } else {
+                // — NOT LOGGED IN —
                 userInfo.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
+                if (adminBtn) adminBtn.classList.add('hidden');
 
-                // RE-RENDER THE GOOGLE BUTTON (this is the missing piece!)
-                signInDiv.innerHTML = '';
+                // Show the Google Sign-In button
+                signInDiv.classList.remove('hidden');
+                signInDiv.innerHTML = ''; // clear any old button
                 google.accounts.id.renderButton(signInDiv, {
                     theme: 'outline',
                     size: 'large',
