@@ -47,16 +47,31 @@ async function init() {
   console.log('INIT: Grid rendered');
   setupFilters();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
-  
-  // Sidebar toggle
-  document.getElementById('preferitiToggle')?.addEventListener('click', () => {
-    document.getElementById('preferitiSidebar').classList.toggle('-translate-x-full');
-    document.getElementById('preferitiOverlay')?.classList.toggle('hidden');
-  });
-  document.getElementById('closePreferiti')?.addEventListener('click', () => {
-    document.getElementById('preferitiSidebar').classList.add('-translate-x-full');
-    document.getElementById('preferitiOverlay')?.classList.add('hidden');
-  });
+
+  // Sidebar toggle — FIXED for mobile
+  document.getElementById('preferitiToggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();  // ← ADD: Prevent bubbling to header
+    const sidebar = document.getElementById('preferitiSidebar');
+    const overlay = document.getElementById('preferitiOverlay');
+    sidebar.classList.toggle('-translate-x-full');
+    overlay.classList.toggle('hidden');
+  }, { passive: false });  // ← ADD: For touch events on mobile
+
+  document.getElementById('closePreferiti')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sidebar = document.getElementById('preferitiSidebar');
+    const overlay = document.getElementById('preferitiOverlay');
+    sidebar.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+  }, { passive: false });
+
+  // Overlay click to close — FIXED to not block grid touches
+  document.getElementById('preferitiOverlay')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sidebar = document.getElementById('preferitiSidebar');
+    sidebar.classList.add('-translate-x-full');
+    e.target.classList.add('hidden');  // ← Self-hide
+  }, { passive: false });
 }
 
 async function loadCSVAndStatus() {

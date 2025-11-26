@@ -165,3 +165,18 @@
   #googleSignInButton.hidden { display: none !important; }
 
   #preferitiOverlay.hidden { display: none; }
+
+  @media (max-width: 640px) {
+  #preferitiSidebar {
+    width: 100vw;  /* Full width on mobile */
+  }
+  #preferitiToggle {
+    flex-shrink: 0;  /* Prevent shrinking */
+  }
+  #preferitiOverlay {
+    z-index: 40 !important;  /* Ensure overlay is below modal but above grid */
+  }
+  #grid {
+    pointer-events: auto;  /* Ensure grid is always clickable */
+  }
+}
