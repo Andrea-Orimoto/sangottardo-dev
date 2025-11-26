@@ -47,8 +47,7 @@ async function init() {
   console.log('INIT: Grid rendered');
   setupFilters();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
-  document.getElementById('clearFilters').onclick = clearFilters;
-
+  
   // Sidebar toggle
   document.getElementById('preferitiToggle')?.addEventListener('click', () => {
     document.getElementById('preferitiSidebar').classList.toggle('-translate-x-full');
@@ -335,14 +334,6 @@ function setupFilters() {
       if (option) { sel.value = urlCat; sel.dispatchEvent(new Event('change')); }
     }, 100);
   }
-}
-
-function clearFilters() {
-  document.getElementById('search').value = '';
-  document.getElementById('catFilter').value = '';
-  if (document.getElementById('statusFilter')) document.getElementById('statusFilter').value = '';
-  displayed = 0;
-  renderGrid();
 }
 
 function renderGrid(loadMore = false) {
