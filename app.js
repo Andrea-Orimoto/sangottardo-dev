@@ -183,19 +183,19 @@ function isFavorite(uuid) {
 }
 
 // NUOVA handleHeartClick — restituisce Promise
-window.handleHeartClick = async function(uuid) {
+window.handleHeartClick = async function (uuid) {
   if (!window.currentUser) {
     alert("Devi effettuare il login per salvare i Preferiti");
     return;
   }
 
   await toggleFavorite(uuid);  // ← ASPETTA che finisca!
-  
+
   // Ora possiamo aggiornare il cuore nel modal in modo sicuro
   const modalHeartBtn = document.querySelector('.swiper button[data-heart]');
   if (modalHeartBtn) {
     const isNowFavorite = isFavorite(uuid);
-    modalHeartBtn.querySelector('svg').className = 
+    modalHeartBtn.querySelector('svg').className =
       `w-7 h-7 ${isNowFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`;
   }
 };
@@ -439,27 +439,32 @@ function openModal(item) {
   });
 
   // Add heart in modal top-right
-// Rimuovi cuore precedente
-document.querySelector('.swiper button[data-heart]')?.remove();
+  // Rimuovi cuore precedente
+  document.querySelector('.swiper button[data-heart]')?.remove();
 
-const modalHeart = document.createElement('button');
-modalHeart.setAttribute('data-heart', 'true');
-modalHeart.className = 'absolute top-4 right-12 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10';
-modalHeart.innerHTML = `
+  const modalHeart = document.createElement('button');
+  modalHeart.setAttribute('data-heart', 'true');
+  modalHeart.className = 'absolute top-4 right-12 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10';
+  modalHeart.innerHTML = `
   <svg class="w-7 h-7 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}"
        viewBox="0 0 24 24" fill="currentColor">
     <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
   </svg>
 `;
 
-modalHeart.onclick = async function(e) {
-  e.stopPropagation();
-  await handleHeartClick(item.UUID);  // ← ASPETTA Firebase
-  const nuovoStato = isFavorite(item.UUID);
-  this.querySelector('svg').className = `w-7 h-7 ${nuovoStato ? 'fill-red-500 text-red-500' : 'text-gray-500'}`;
-};
+  modalHeart.onclick = async (e) => {
+    e.stopPropagation();
+    await handleHeartClick(item.UUID);  // ← AWAIT the toggle — ensures data is updated
+    const newFavorite = isFavorite(item.UUID);
+    modalHeart.innerHTML = `
+    <svg class="w-7 h-7 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}"
+        viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+    </svg>
+  `;
+  };
 
-document.querySelector('.swiper').insertAdjacentElement('afterbegin', modalHeart);
+  document.querySelector('.swiper').insertAdjacentElement('afterbegin', modalHeart);
 
   document.getElementById('modal').classList.remove('hidden');
   document.getElementById('closeModal').onclick = closeModal;
