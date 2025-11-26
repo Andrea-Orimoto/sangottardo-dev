@@ -187,7 +187,9 @@ async function toggleFavorite(uuid) {
 
 // Integra con il tuo login esistente
 // In auth.js, in handleCredentialResponse, dopo window.currentUser = ... :
-auth.signInWithCustomToken(window.currentUser.id).catch(() => { });  // Linka al tuo Google user
+if (window.currentUser && window.currentUser.id) {
+  auth.signInWithCustomToken(window.currentUser.id).catch(() => { });
+}
 
 // Aggiorna isFavorite per usare Firebase data
 function isFavorite(uuid) {
