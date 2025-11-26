@@ -365,12 +365,11 @@ function renderGrid(loadMore = false) {
       </div>` : '';
 
     const heartIcon = `
-      <button onclick="event.stopPropagation(); handleHeartClick('${item.UUID}')" class="absolute top-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition z-10">
-        <svg class="w-5 h-5 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-400'}"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-      </button>`;
+  <button onclick="event.stopPropagation(); handleHeartClick('${item.UUID}')" class="absolute top-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition z-10">
+    <svg class="w-5 h-5 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" fill="currentColor"></path>
+    </svg>
+  </button>`;
 
     const statusHtml = isSold
       ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>'
@@ -436,24 +435,24 @@ function openModal(item) {
   // Rimuovi cuore precedente
   document.querySelector('.swiper > button[data-heart]')?.remove();
 
-  // Crea il cuore con UUID catturato correttamente
+  // Crea il cuore aggiornato
+  const favorite = isFavorite(item.UUID);
   const modalHeart = document.createElement('button');
   modalHeart.setAttribute('data-heart', 'true');
-  modalHeart.className = 'absolute top-4 right-12 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10';
+  modalHeart.className = 'absolute top-4 right-12 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10 transition';
   modalHeart.innerHTML = `
-  <svg class="w-7 h-7 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}"
-       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+  <svg class="w-7 h-7 ${favorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}" 
+       viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
   </svg>
 `;
 
-  // Usa una closure corretta per catturare item.UUID
   modalHeart.onclick = function (e) {
     e.stopPropagation();
     handleHeartClick(item.UUID);
-    // Aggiorna colore ISTANTANEAMENTE usando lo stato locale (già aggiornato da toggleFavorite)
-    const nowFavorite = isFavorite(item.UUID);
-    this.querySelector('svg').className = `w-7 h-7 ${nowFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`;
+    // Aggiorna il colore ISTANTANEAMENTE
+    const nuovoStato = isFavorite(item.UUID);
+    this.querySelector('svg').className = `w-7 h-7 ${nuovoStato ? 'fill-red-500 text-red-500' : 'text-gray-500'}`;
   };
 
   document.querySelector('.swiper').insertAdjacentElement('afterbegin', modalHeart);
