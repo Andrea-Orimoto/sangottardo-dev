@@ -309,7 +309,7 @@ function filterItems() {
   const statusFilter = document.getElementById('statusFilter')?.value || '';
 
   return allItems.filter(item => {
-    const searchText = [item.Item, item.Location, item.Categories, item.Notes].join(' ').toLowerCase();
+    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No']].join(' ').toLowerCase();
     const matchSearch = !q || searchText.includes(q);
     const matchLocation = !locFilter || (item.Location || '') === locFilter;
 
