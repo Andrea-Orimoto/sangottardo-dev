@@ -45,7 +45,6 @@ window.updateAuthUI = function () {
     const hasUser = !!window.currentUser;
     const userInfo = document.getElementById('userInfo');
     const userPhoto = document.getElementById('userPhoto');
-    const userName = document.getElementById('userName');
     const logoutBtn = document.getElementById('logoutBtn');
     const signInDiv = document.getElementById('googleSignInButton');
     const adminBtn = document.getElementById('adminBtn');
@@ -59,7 +58,6 @@ window.updateAuthUI = function () {
     }
 
     if (hasUser) {
-        if (userName) userName.textContent = window.currentUser.name.split(' ')[0];
         if (userPhoto) userPhoto.src = window.currentUser.picture;
         userInfo?.classList.remove('hidden');
         logoutBtn?.classList.remove('hidden');
