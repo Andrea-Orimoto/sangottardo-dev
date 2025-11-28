@@ -156,7 +156,7 @@ async function loadPreferiti() {
 }
 
 // Salva su Firebase (istantaneo!)
-// ---- FUNZIONE 2: toggleFavorite (sostituisci tutta) ----
+// 1. toggleFavorite — ora salva la data (compatibile con vecchi dati)
 async function toggleFavorite(uuid) {
   if (!window.currentUser) {
     alert("Devi effettuare il login per salvare i Preferiti");
@@ -167,19 +167,27 @@ async function toggleFavorite(uuid) {
   const key = email.replace(/\./g, '_');
   let list = (window.preferitiData[email] || []).slice();
 
-  const index = list.indexOf(uuid);
+  // Trova se esiste già (supporta sia stringa che oggetto)
+  const index = list.findIndex(entry => 
+    (typeof entry === 'string' ? entry : entry.id) === uuid
+  );
+
   if (index > -1) {
     list.splice(index, 1);
   } else {
-    list.push(uuid);
+    // Aggiunge con data
+    list.push({
+      id: uuid,
+      added: new Date().toISOString()
+    });
   }
 
   window.preferitiData[email] = list;
   renderGrid();
   renderPreferitiSidebar();
-  updatePreferitiCount();
+  updatePreferitiCount?.() || (document.getElementById('preferitiCount').textContent = list.length);
 
-  // Salva su Firebase — istantaneo
+  // Salva su Firebase
   db.ref('preferiti/' + key).set(list)
     .then(() => console.log("Preferiti salvati su Firebase"))
     .catch(e => console.warn("Errore salvataggio Firebase:", e));
@@ -193,9 +201,11 @@ if (window.currentUser && window.currentUser.id) {
 
 // Aggiorna isFavorite per usare Firebase data
 function isFavorite(uuid) {
-  if (!window.currentUser) return false;
+  if (!window.currentUser?.email) return false;
   const list = window.preferitiData[window.currentUser.email] || [];
-  return list.includes(uuid);
+  return list.some(entry => 
+    typeof entry === 'string' ? entry === uuid : entry.id === uuid
+  );
 }
 
 // NUOVA handleHeartClick — restituisce Promise
@@ -228,24 +238,33 @@ function updatePreferitiCount() {
   if (el) el.textContent = count;
 }
 
+// 2. renderPreferitiSidebar — identica alla tua, ma con data e ordine
 function renderPreferitiSidebar() {
   const container = document.getElementById('preferitiList');
   if (!container) return;
 
   const email = window.currentUser?.email;
-  const uuids = email ? (window.preferitiData[email] || []) : [];
+  let list = email ? (window.preferitiData[email] || []) : [];
 
-  if (uuids.length === 0) {
+  // Normalizza: converte vecchie stringhe in oggetti con data
+  list = list.map(entry => 
+    typeof entry === 'string' ? { id: entry, added: new Date().toISOString() } : entry
+  );
+
+  if (list.length === 0) {
     container.innerHTML = '<p class="text-gray-500 text-center py-8">Nessun preferito</p>';
     document.getElementById('preferitiCount').textContent = '0';
     return;
   }
 
-  document.getElementById('preferitiCount').textContent = uuids.length;
+  // Ordina per data (più recente sopra)
+  list.sort((a, b) => new Date(b.added) - new Date(a.added));
+
+  document.getElementById('preferitiCount').textContent = list.length;
 
   const fragment = document.createDocumentFragment();
-  uuids.forEach(uuid => {
-    const item = allItems.find(i => i.UUID === uuid);
+  list.forEach(entry => {
+    const item = allItems.find(i => i.UUID === entry.id);
     if (!item) return;
 
     const div = document.createElement('div');
@@ -255,10 +274,17 @@ function renderPreferitiSidebar() {
       document.getElementById('preferitiSidebar').classList.add('-translate-x-full');
     };
 
+    const dateStr = new Date(entry.added).toLocaleDateString('it-IT', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+
     div.innerHTML = `
       <img src="images/${item.Photos[0] || 'placeholder.jpg'}" class="w-12 h-12 object-cover rounded" onerror="this.src='images/placeholder.jpg'">
-      <span class="flex-1 text-sm font-medium truncate">${item.Item}</span>
-      <button class="text-red-500 hover:text-red-700 text-xl" onclick="event.stopPropagation(); toggleFavorite('${uuid}');">
+      <div class="flex-1">
+        <span class="text-sm font-medium truncate block">${item.Item}</span>
+        <span class="text-xs text-gray-500">Aggiunto il ${dateStr}</span>
+      </div>
+      <button class="text-red-500 hover:text-red-700 text-xl" onclick="event.stopPropagation(); toggleFavorite('${entry.id}');">
         ×
       </button>
     `;
@@ -268,6 +294,7 @@ function renderPreferitiSidebar() {
   container.innerHTML = '';
   container.appendChild(fragment);
 }
+
 // ==========================================
 
 function formatPrice(item) {
