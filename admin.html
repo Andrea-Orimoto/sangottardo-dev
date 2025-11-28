@@ -1,34 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin – Inventario San Gottardo</title>
+    <title>Admin – Preferiti | Inventario San Gottardo</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="style.css?9" rel="stylesheet">
+    <link href="style.css?10" rel="stylesheet">
 
-    <!-- Google Sign-In (same as index.html) -->
-    <meta name="google-signin-client_id"
-        content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="auth.js"></script>
-
 </head>
 
 <body class="bg-gray-50 text-gray-800 min-h-screen">
-
-    <div class="container mx-auto p-6 max-w-5xl">
-
-        <!-- Header -->
+    <div class="container mx-auto p-6 max-w-7xl">
         <header class="flex justify-between items-center mb-10 pb-6 border-b">
             <div class="flex items-center gap-6">
                 <a href="index.html" class="text-indigo-600 hover:text-indigo-800 font-medium">
                     ← Torna alla home
                 </a>
-                <h1 class="text-3xl font-bold">Admin Page</h1>
+                <h1 class="text-3xl font-bold">Admin – Preferiti</h1>
             </div>
-
             <div class="flex items-center gap-4">
                 <div id="userInfo" class="hidden flex items-center gap-3">
                     <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indigo-600" src="" alt="">
@@ -41,14 +35,228 @@
             </div>
         </header>
 
-        <!-- Main Content (empty for now – we’ll fill it later) -->
-        <div class="bg-white rounded-lg shadow p-8 text-center text-gray-600">
-            <p class="text-xl">Benvenuto nella sezione Admin</p>
-            <p class="mt-4">Questa pagina è visibile solo agli amministratori.</p>
-            <p class="mt-8 text-5xl">Under Construction</p>
+        <div class="border-b border-gray-200 mb-8">
+            <nav class="flex space-x-8">
+                <button id="tab-users"
+                    class="tab-btn active py-2 px-1 border-b-2 border-indigo-600 font-medium text-indigo-600">
+                    Per Utente
+                </button>
+                <button id="tab-items" class="tab-btn py-2 px-1 border-b-2 border-transparent hover:text-indigo-600">
+                    Per Oggetto
+                </button>
+            </nav>
         </div>
 
+        <div id="loading" class="text-center py-12">
+            <div
+                class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent">
+            </div>
+            <p class="mt-4 text-gray-600">Caricamento preferiti...</p>
+        </div>
+
+        <div id="view-users" class="view">
+            <div id="users-list" class="grid gap-6"></div>
+        </div>
+        <div id="view-items" class="view hidden">
+            <div id="items-list" class="grid gap-6"></div>
+        </div>
     </div>
+
+    <script>
+        // Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCq_W69Eab67KpnX8HTEkzRHBW7TB_6daQ",
+            authDomain: "san-gottardo-preferiti.firebaseapp.com",
+            databaseURL: "https://san-gottardo-preferiti-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "san-gottardo-preferiti",
+            storageBucket: "san-gottardo-preferiti.firebasestorage.app",
+            messagingSenderId: "1012486211234",
+            appId: "1:1012486211234:web:04b3bb02b84cb19ef839fb"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allItems = [];
+
+        async function loadItemsCSV() {
+            const resp = await fetch('data/items.csv');
+            const text = await resp.text();
+            const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+            const map = new Map();
+            parsed.data.forEach(row => {
+                const uuid = row.UUID;
+                if (!uuid) return;
+                if (!map.has(uuid)) map.set(uuid, { ...row, Photos: [] });
+                const photos = (row.Photos || '').trim().split(/\s+/).filter(Boolean);
+                if (photos.length) map.get(uuid).Photos.push(...photos);
+            });
+            allItems = Array.from(map.values());
+        }
+
+        window.currentUser = null;
+
+        function onGoogleSignIn(googleUser) {
+            window.currentUser = {
+                email: googleUser.getBasicProfile().getEmail(),
+                name: googleUser.getBasicProfile().getName(),
+                photo: googleUser.getBasicProfile().getImageUrl()
+            };
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('userName').textContent = window.currentUser.name;
+            document.getElementById('userPhoto').src = window.currentUser.photo;
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            loadAllFavorites();
+        }
+
+        document.getElementById('logoutBtn')?.addEventListener('click', () => {
+            google.accounts.id.disableAutoSelect();
+            location.reload();
+        });
+
+        // Tabs
+        document.getElementById('tab-users').onclick = () => switchTab('users');
+        document.getElementById('tab-items').onclick = () => switchTab('items');
+
+        function switchTab(mode) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active', 'border-indigo-600', 'text-indigo-600');
+                b.classList.add('border-transparent');
+            });
+            document.getElementById(`tab-${mode}`).classList.add('active', 'border-indigo-600', 'text-indigo-600');
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById(`view-${mode}`).classList.remove('hidden');
+        }
+
+        async function loadAllFavorites() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('users-list').innerHTML = '';
+            document.getElementById('items-list').innerHTML = '';
+
+            if (allItems.length === 0) await loadItemsCSV();
+
+            const snapshot = await db.ref('preferiti').once('value');
+            const data = snapshot.val() || {};
+            const allFavorites = [];
+
+            Object.entries(data).forEach(([key, list]) => {
+                const email = key.replace(/_/g, '.');
+                (list || []).forEach(entry => {
+                    const id = typeof entry === 'string' ? entry : entry.id;
+                    const added = typeof entry === 'string' ? null : (entry.added || null);
+                    allFavorites.push({ email, id, added });
+                });
+            });
+
+            renderByUser(allFavorites);
+            renderByItem(allFavorites);
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function renderByUser(data) {
+            const container = document.getElementById('users-list');
+            const grouped = {};
+            data.forEach(d => {
+                if (!grouped[d.email]) grouped[d.email] = [];
+                grouped[d.email].push(d);
+            });
+
+            Object.keys(grouped).sort().forEach(email => {
+                const items = grouped[email]
+                    .sort((a, b) => new Date(b.added || 0) - new Date(a.added || 0))
+                    .map(d => {
+                        const item = allItems.find(i => i.UUID === d.id);
+                        if (!item) return '';
+                        return `
+              <div class="flex items-center gap-3 py-2">
+                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-10 h-10 object-cover rounded" onerror="this.src='images/placeholder.jpg'">
+                <span class="text-sm">${item.Item}</span>
+                <span class="text-xs text-gray-500 ml-auto">${d.added ? new Date(d.added).toLocaleDateString('it-IT') : '—'}</span>
+              </div>
+            `;
+                    }).join('');
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow p-5';
+                card.innerHTML = `
+          <h3 class="font-bold text-lg mb-3">${email} <span class="text-sm font-normal text-gray-500">(${grouped[email].length})</span></h3>
+          <div class="space-y-2">${items}</div>
+        `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderByItem(data) {
+            const container = document.getElementById('items-list');
+            const grouped = {};
+            data.forEach(d => {
+                if (!grouped[d.id]) grouped[d.id] = [];
+                grouped[d.id].push({ email: d.email, added: d.added });
+            });
+
+            Object.keys(grouped).sort((a, b) => {
+                const nameA = allItems.find(i => i.UUID === a)?.Item || '';
+                const nameB = allItems.find(i => i.UUID === b)?.Item || '';
+                return nameA.localeCompare(nameB);
+            }).forEach(uuid => {
+                const item = allItems.find(i => i.UUID === uuid);
+                if (!item) return;
+
+                const users = grouped[uuid]
+                    .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0))
+                    .map(u => `
+            <div class="text-sm">
+              ${u.email} — ${u.added ? new Date(u.added).toLocaleDateString('it-IT') : '—'}
+            </div>
+          `).join('');
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow p-5';
+                card.innerHTML = `
+          <div class="flex items-center gap-4 mb-3">
+            <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-16 h-16 object-cover rounded-lg" onerror="this.src='images/placeholder.jpg'">
+            <div>
+              <h3 class="font-bold">${item.Item}</h3>
+              <p class="text-sm text-gray-500">${grouped[uuid].length} utenti</p>
+            </div>
+          </div>
+          <div class="text-sm space-y-1 pl-20">${users}</div>
+        `;
+                container.appendChild(card);
+            });
+        }
+
+        function forceLocalLogin() {
+            const email = prompt("Login admin (inserisci la tua email Google)");
+            if (email && (email.includes('andrea.orimoto') || email.includes('akikocristina'))) {
+                window.currentUser = { email: email, name: email.split('@')[0] };
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('userName').textContent = email;
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                loadAllFavorites();
+            } else if (email) {
+                alert("Accesso negato");
+            }
+        }
+
+        // Usa il login forzato in locale
+        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+            forceLocalLogin();
+        } else {
+            // Produzione: usa Google
+            function startGoogleLogin() {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    google.accounts.id.initialize({
+                        client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
+                        callback: onGoogleSignIn
+                    });
+                    google.accounts.id.prompt();
+                } else {
+                    setTimeout(startGoogleLogin, 100);
+                }
+            }
+            startGoogleLogin();
+        }
+    </script>
 </body>
 
 </html>
