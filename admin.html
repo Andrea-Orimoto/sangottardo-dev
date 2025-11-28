@@ -14,7 +14,6 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="auth.js"></script>
 
-    <!-- OBBLIGATORIO per auth.js -->
     <meta name="google-signin-client_id" content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
 </head>
 
@@ -28,9 +27,7 @@
                 <h1 class="text-3xl font-bold">Admin</h1>
             </div>
             <div class="flex items-center gap-4">
-                <!-- OBBLIGATORIO per auth.js -->
                 <div id="googleSignIn"></div>
-
                 <div id="userInfo" class="hidden flex items-center gap-3">
                     <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indigo-600" src="" alt="">
                 </div>
@@ -65,7 +62,6 @@
     </div>
 
     <script>
-        // Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCq_W69Eab67KpnX8HTEkzRHBW7TB_6daQ",
             authDomain: "san-gottardo-preferiti.firebaseapp.com",
@@ -100,7 +96,6 @@
             }
         }
 
-        // POLLING SEMPLICE: ASPETTA CHE auth.js IMPOSTI window.currentUser
         function waitForUser() {
             if (window.currentUser && window.currentUser.email) {
                 document.getElementById('userInfo').classList.remove('hidden');
@@ -155,6 +150,7 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
+        // VISTA PER UTENTE – CON ID, SCATOLA, PREZZO
         function renderByUser(data) {
             const container = document.getElementById('users-list');
             const grouped = {};
@@ -169,11 +165,25 @@
                     .map(d => {
                         const item = allItems.find(i => i.UUID === d.id);
                         if (!item) return '';
+
+                        const id = item['Serial No'] || '—';
+                        const box = item.Categories || '—';
+                        const price = item['Purchase Price'] ? `${item['Purchase Price']} ${item['Purchase Currency'] || 'EUR'}` : '—';
+
                         return `
-              <div class="flex items-center gap-3 py-2">
-                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-10 h-10 object-cover rounded" onerror="this.src='images/placeholder.jpg'">
-                <span class="text-sm">${item.Item}</span>
-                <span class="text-xs text-gray-500 ml-auto">${d.added ? new Date(d.added).toLocaleDateString('it-IT') : '—'}</span>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-3 py-3 border-b last:border-0">
+                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-12 h-12 object-cover rounded flex-shrink-0" onerror="this.src='images/placeholder.jpg'">
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">${item.Item}</div>
+                  <div class="text-xs text-gray-600 space-y-1 mt-1">
+                    <span>ID: ${id}</span> • 
+                    <span>Scatola: ${box}</span> • 
+                    <span>Prezzo: ${price}</span>
+                  </div>
+                </div>
+                <div class="text-xs text-gray-500 sm:ml-auto sm:text-right">
+                  ${d.added ? new Date(d.added).toLocaleDateString('it-IT') : '—'}
+                </div>
               </div>
             `;
                     }).join('');
@@ -181,13 +191,14 @@
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow p-5';
                 card.innerHTML = `
-          <h3 class="font-bold text-lg mb-3">${email} <span class="text-sm font-normal text-gray-500">(${grouped[email].length})</span></h3>
-          <div class="space-y-2">${items}</div>
+          <h3 class="font-bold text-lg mb-4">${email} <span class="text-sm font-normal text-gray-500">(${grouped[email].length})</span></h3>
+          <div class="space-y-4">${items}</div>
         `;
                 container.appendChild(card);
             });
         }
 
+        // VISTA PER OGGETTO – CON ID, SCATOLA, PREZZO
         function renderByItem(data) {
             const container = document.getElementById('items-list');
             const grouped = {};
@@ -204,6 +215,10 @@
                 const item = allItems.find(i => i.UUID === uuid);
                 if (!item) return;
 
+                const id = item['Serial No'] || '—';
+                const box = item.Categories || '—';
+                const price = item['Purchase Price'] ? `${item['Purchase Price']} ${item['Purchase Currency'] || 'EUR'}` : '—';
+
                 const users = grouped[uuid]
                     .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0))
                     .map(u => `
@@ -215,14 +230,19 @@
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow p-5';
                 card.innerHTML = `
-          <div class="flex items-center gap-4 mb-3">
-            <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-16 h-16 object-cover rounded-lg" onerror="this.src='images/placeholder.jpg'">
-            <div>
-              <h3 class="font-bold">${item.Item}</h3>
-              <p class="text-sm text-gray-500">${grouped[uuid].length} utenti</p>
+          <div class="flex flex-col sm:flex-row gap-4 mb-4">
+            <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" class="w-20 h-20 object-cover rounded-lg flex-shrink-0" onerror="this.src='images/placeholder.jpg'">
+            <div class="flex-1">
+              <h3 class="font-bold text-lg">${item.Item}</h3>
+              <div class="text-sm text-gray-600 mt-1 space-x-4">
+                <span>ID: ${id}</span>
+                <span>Scatola: ${box}</span>
+                <span>Prezzo: ${price}</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-2">${grouped[uuid].length} utenti</p>
             </div>
           </div>
-          <div class="text-sm space-y-1 pl-20">${users}</div>
+          <div class="text-sm space-y-1">${users}</div>
         `;
                 container.appendChild(card);
             });

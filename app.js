@@ -427,7 +427,7 @@ function renderGrid(loadMore = false) {
         <div>
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
           <p class="text-xs text-gray-600 mt-1">Category: ${item.Location || '—'}</p>
-          <p class="text-xs text-gray-500">Serial: ${item['Serial No'] || '—'}</p>
+          <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
         </div>
         <div class="flex justify-between items-center">
           <p class="text-sm font-medium text-indigo-600">Price: ${formatPrice(item)}</p>
@@ -456,7 +456,7 @@ function renderGrid(loadMore = false) {
 function openModal(item) {
   document.getElementById('modalTitle').textContent = item.Item;
   document.getElementById('modalDesc').innerHTML = `
-    <strong>Serial Number:</strong> ${item['Serial No'] || '—'}<br>
+    <strong>ID:</strong> ${item['Serial No'] || '—'}<br>
     <strong>Category:</strong> ${item.Location || '—'}<br>
     <strong>Scatola:</strong> ${item.Categories || '—'}<br>
     ${item.Notes ? `<strong>Notes:</strong><br><span class="text-sm italic text-gray-700">${item.Notes.replace(/\n/g, '<br>')}</span><br>` : ''}
