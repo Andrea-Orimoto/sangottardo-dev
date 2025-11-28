@@ -1,6 +1,7 @@
 // auth.js  –  shared by index.html and admin.html
 const ADMIN_EMAILS = [
-    'andrea.orimoto@gmail.com'
+    'andrea.orimoto@gmail.com',
+    'akikocristina.orimoto@gmail.com'
     // add more admins here in the future
 ];
 
