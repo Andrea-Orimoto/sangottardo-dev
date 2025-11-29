@@ -133,19 +133,20 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: #e5e7eb !important; /* Soft medium gray (was #f9fafb) */
+    background: #e5e7eb !important;
+    /* Soft medium gray (was #f9fafb) */
     padding: 0 !important;
     margin: 0 !important;
-  }
-  
-  .swiper-slide img {
+}
+
+.swiper-slide img {
     width: 100% !important;
     height: 100% !important;
     object-fit: contain !important;
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
-  }
+}
 
 .swiper-pagination-bullet {
     background: #cbd5e1;
@@ -160,23 +161,68 @@
 .grid-photo-badge {
     font-family: system-ui, -apple-system, sans-serif;
     font-weight: 600;
-  }
+}
 
-  #googleSignInButton.hidden { display: none !important; }
+#googleSignInButton.hidden {
+    display: none !important;
+}
 
-  #preferitiOverlay.hidden { display: none; }
+#preferitiOverlay.hidden {
+    display: none;
+}
 
-  @media (max-width: 640px) {
-  #preferitiSidebar {
-    width: 100vw;  /* Full width on mobile */
-  }
-  #preferitiToggle {
-    flex-shrink: 0;  /* Prevent shrinking */
-  }
-  #preferitiOverlay {
-    z-index: 40 !important;  /* Ensure overlay is below modal but above grid */
-  }
-  #grid {
-    pointer-events: auto;  /* Ensure grid is always clickable */
-  }
+@media (max-width: 640px) {
+    #preferitiSidebar {
+        width: 100vw;
+        /* Full width on mobile */
+    }
+
+    #preferitiToggle {
+        flex-shrink: 0;
+        /* Prevent shrinking */
+    }
+
+    #preferitiOverlay {
+        z-index: 40 !important;
+        /* Ensure overlay is below modal but above grid */
+    }
+
+    #grid {
+        pointer-events: auto;
+        /* Ensure grid is always clickable */
+    }
+}
+
+/* BADGE STATUS – identici a quelli di index.html */
+.badge-disponibile {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;     /* più piccolo */
+    font-size: 0.75rem;           /* testo più piccolo */
+    font-weight: 600;
+    color: white;
+    background-color: #10b981;     /* emerald-500 come in index */
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.badge-prenotato {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background-color: #f97316;     /* orange-500 */
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.badge-venduto {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background-color: #ef4444;     /* red-500 */
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
