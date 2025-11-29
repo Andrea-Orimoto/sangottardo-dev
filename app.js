@@ -76,6 +76,7 @@ async function init() {
 
 async function loadCSVAndStatus() {
   try {
+    // 1. Carica il CSV (uguale a prima – perfetto)
     const resp = await fetch('data/items.csv');
     const text = await resp.text();
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
@@ -91,19 +92,27 @@ async function loadCSVAndStatus() {
 
     allItems = Array.from(map.values());
 
-    // Load status.json
+    // 2. CARICA STATUS DA FIREBASE (nuovo!)
     try {
-      const statusResp = await fetch('data/status.json');
-      if (statusResp.ok) {
-        const statusData = await statusResp.json();
-        allItems.forEach(item => {
-          item.Status = statusData[item.UUID] || '';
-        });
-      }
-    } catch (e) { console.warn("No status.json — all Disponibile"); }
+      const snapshot = await db.ref('status').once('value');
+      const statusData = snapshot.val() || {};
+
+      allItems.forEach(item => {
+        const fbEntry = statusData[item.UUID];
+        if (fbEntry && fbEntry.stato) {
+          item.Status = fbEntry.stato;  // "Venduto", "Prenotato", ecc.
+        } else {
+          item.Status = '';  // Disponibile
+        }
+      });
+      console.log('Status caricati da Firebase:', Object.keys(statusData).length);
+    } catch (e) {
+      console.warn('Impossibile caricare status da Firebase (normale se offline)', e);
+      // Non blocca nulla – gli item rimangono "Disponibile"
+    }
 
   } catch (e) {
-    console.error("Load failed:", e);
+    console.error("Caricamento fallito:", e);
     allItems = [];
   }
 }
