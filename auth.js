@@ -1,8 +1,8 @@
-// auth.js  –  shared by index.html and admin.html
+// auth.js – Versione FINALE SICURA (funziona anche se Firebase non è ancora caricato)
+
 const ADMIN_EMAILS = [
     'andrea.orimoto@gmail.com',
     'akikocristina.orimoto@gmail.com'
-    // add more admins here in the future
 ];
 
 window.isAdmin = function (user) {
@@ -23,11 +23,19 @@ function handleCredentialResponse(response) {
         picture: payload.picture
     };
     localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
+
+    // AUTENTICA SU FIREBASE SOLO SE È CARICATO
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+        firebase.auth().signInWithCredential(credential)
+            .then(() => console.log("Firebase Auth OK:", window.currentUser.email))
+            .catch(err => console.warn("Firebase auth non disponibile (normale se offline):", err));
+    }
+
     window.updateAuthUI?.();
 
-    // RELOAD FAVORITES AFTER LOGIN
     if (window.loadPreferiti) {
-        window.loadPreferiti();   // ← This triggers the correct hearts/count
+        window.loadPreferiti();
     }
 }
 
@@ -35,13 +43,16 @@ window.logout = function () {
     window.currentUser = null;
     localStorage.removeItem('sgUser');
     google.accounts.id.disableAutoSelect();
-    window.updateAuthUI?.();
 
-    // Redirect to home after logout — works on both pages!
+    // Logout Firebase se esiste
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().signOut().catch(() => {});
+    }
+
+    window.updateAuthUI?.();
     window.location.href = 'index.html';
 };
 
-// This function will be called from each page
 window.updateAuthUI = function () {
     const hasUser = !!window.currentUser;
     const userInfo = document.getElementById('userInfo');
@@ -50,12 +61,9 @@ window.updateAuthUI = function () {
     const signInDiv = document.getElementById('googleSignInButton');
     const adminBtn = document.getElementById('adminBtn');
     const preferitiBtn = document.getElementById('preferitiToggle');
+
     if (preferitiBtn) {
-        if (window.currentUser) {
-            preferitiBtn.classList.remove('hidden');
-        } else {
-            preferitiBtn.classList.add('hidden');
-        }
+        hasUser ? preferitiBtn.classList.remove('hidden') : preferitiBtn.classList.add('hidden');
     }
 
     if (hasUser) {
@@ -79,17 +87,15 @@ window.updateAuthUI = function () {
     }
 };
 
-// Initialize Google Sign-In (runs on every page)
+// Inizializza Google Sign-In
 window.onload = function () {
     google.accounts.id.initialize({
-        client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',  // ← your real ID
+        client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
         callback: handleCredentialResponse
     });
 
-    // Page-specific protection for admin.html
     if (window.location.pathname.includes('admin.html')) {
         if (!window.currentUser || !window.isAdmin(window.currentUser)) {
-            //alert('Accesso negato. Solo gli amministratori possono accedere.');
             window.location.href = 'index.html';
             return;
         }
@@ -102,8 +108,8 @@ window.onload = function () {
     document.getElementById('adminBtn')?.addEventListener('click', () => {
         window.location.href = 'admin.html';
     });
-    // CRITICAL: Load favorites AFTER user is known — NO await, NO error
+
     if (window.loadPreferiti && window.currentUser) {
-        window.loadPreferiti();   // ← This is now sync-safe (loadPreferiti is async but fire-and-forget)
+        window.loadPreferiti();
     }
 };
