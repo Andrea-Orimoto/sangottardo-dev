@@ -52,9 +52,7 @@
         </div>
 
         <div id="loading" class="text-center py-12">
-            <div
-                class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent">
-            </div>
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
             <p class="mt-4 text-gray-600">Caricamento preferiti...</p>
         </div>
 
@@ -150,18 +148,16 @@
                 });
             });
 
-            // Carica STATUS da Firebase (e aggiorna item.Status!)
             const statusSnapshot = await db.ref('status').once('value');
             const statusData = statusSnapshot.val() || {};
-            window.allStatus = statusData;  // per i badge in renderByUser / renderByItem
+            window.allStatus = statusData;
 
-            // Aggiorna lo status di ogni oggetto in allItems
             allItems.forEach(item => {
                 const fbStatus = statusData[item.UUID];
                 if (fbStatus && fbStatus.stato) {
-                    item.Status = fbStatus.stato;  // Venduto / Prenotato
+                    item.Status = fbStatus.stato;
                 } else {
-                    item.Status = '';               // Disponibile
+                    item.Status = '';
                 }
             });
 
@@ -170,7 +166,7 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
-        // VISTA PER UTENTE – CON ID, SCATOLA, PREZZO
+        // VISTA PER UTENTE — NOME OGGETTO PIÙ PICCOLO SU MOBILE
         function renderByUser(data) {
             const container = document.getElementById('users-list');
             const grouped = {};
@@ -192,7 +188,6 @@
                         const statusInfo = window.allStatus?.[d.id] || {};
                         const currentStatus = item.Status || 'Disponibile';
 
-                        // Prezzo SOLO da Firebase (una volta sola!)
                         const prezzoVendita = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
                             ? statusInfo.prezzo
                             : null;
@@ -215,55 +210,66 @@
                             badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                         }
 
-                        // BOTTONE EDITING ADMIN (solo se admin)
+                        // BOTTONE EDITING — ELEGANTE E NON INVADENTE
                         const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
                             <button onclick="event.stopPropagation(); openEditModal('${d.id}')"
-                                    class="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition z-10">
-                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    class="absolute top-3 left-3 bg-white/85 hover:bg-white/95 backdrop-blur-sm rounded-full p-3 shadow-xl transition-all z-20 border-2 border-white">
+                                <svg class="w-6 h-6 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                                           d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
                             </button>` : '';
 
-                        return `
-                    <div class="relative flex flex-col sm:flex-row sm:items-center gap-4 py-4 border-b last:border-0">
-                        <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
-                             class="w-14 h-14 object-cover rounded flex-shrink-0" 
-                             onerror="this.src='images/placeholder.jpg'">
+                        const addedDate = d.added 
+                            ? new Date(d.added).toLocaleDateString('it-IT', { 
+                                day: '2-digit', 
+                                month: 'short', 
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }).replace(',', ' alle')
+                            : 'Data non disponibile';
 
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium text-base">${item.Item}</div>
-                            <div class="text-xs text-gray-600 mt-1">
+                        return `
+                    <div class="relative flex items-center gap-6 py-5 border-b last:border-0">
+                        <div class="relative">
+                            <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
+                                 class="w-24 h-24 object-cover rounded-2xl shadow-xl flex-shrink-0" 
+                                 onerror="this.src='images/placeholder.jpg'">
+                            ${editButton}
+                        </div>
+
+                        <div class="flex-1">
+                            <div class="font-bold text-lg sm:text-xl leading-tight">${item.Item}</div>
+                            <div class="text-sm text-gray-600 mt-1">
                                 ID: ${id} • Scatola: ${box}
                                 ${prezzoVendita ? ` • Prezzo: <strong>${prezzoVendita}</strong>` : ''}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Aggiunto: ${addedDate}
                             </div>
                         </div>
 
                         <div class="text-right">
-                            <div class="text-xs text-gray-500 mb-1">
-                                ${d.added ? new Date(d.added).toLocaleDateString('it-IT') : '—'}
-                            </div>
                             ${badge}
                         </div>
-
-                        ${editButton}
                     </div>
                 `;
                     }).join('');
 
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-xl shadow-md p-6';
+                card.className = 'bg-white rounded-2xl shadow-lg p-8';
                 card.innerHTML = `
-            <h3 class="font-bold text-xl mb-5 text-indigo-700">${email} 
-                <span class="text-sm font-normal text-gray-500">(${grouped[email].length})</span>
+            <h3 class="font-bold text-2xl mb-6 text-indigo-700">${email} 
+                <span class="text-base font-normal text-gray-500">(${grouped[email].length})</span>
             </h3>
-            <div class="space-y-6">${items}</div>
+            <div class="space-y-4">${items}</div>
         `;
                 container.appendChild(card);
             });
         }
 
-        // VISTA PER OGGETTO – CON ID, SCATOLA, PREZZO
+        // VISTA PER OGGETTO – invariata
         function renderByItem(data) {
             const container = document.getElementById('items-list');
             const grouped = {};
@@ -286,7 +292,6 @@
                 const statusInfo = window.allStatus?.[uuid] || {};
                 const currentStatus = item.Status || 'Disponibile';
 
-                // Prezzo SOLO da Firebase (una volta sola!)
                 const prezzoVendita = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
                     ? statusInfo.prezzo
                     : null;
@@ -315,7 +320,6 @@
                 <div class="text-sm">${u.email} — ${u.added ? new Date(u.added).toLocaleDateString('it-IT') : '—'}</div>
             `).join('');
 
-                // BOTTONE EDITING ADMIN (solo se admin)
                 const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
                     <button onclick="event.stopPropagation(); openEditModal('${uuid}')" 
                             class="absolute top-6 right-6 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition z-10">
@@ -326,23 +330,23 @@
                     </button>` : '';
 
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-xl shadow-md p-6 border border-gray-100 relative'; // ← aggiunto relative
+                card.className = 'bg-white rounded-2xl shadow-lg p-8 border border-gray-100 relative';
 
                 card.innerHTML = `
-            <div class="flex flex-col lg:flex-row gap-6">
+            <div class="flex flex-col lg:flex-row gap-8">
                 <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
-                     class="w-28 h-28 object-cover rounded-lg shadow-md flex-shrink-0" 
+                     class="w-32 h-32 object-cover rounded-2xl shadow-xl flex-shrink-0" 
                      onerror="this.src='images/placeholder.jpg'">
 
                 <div class="flex-1">
-                    <h3 class="font-bold text-2xl text-indigo-700 mb-3">${item.Item}</h3>
-                    <div class="grid grid-cols-2 gap-3 text-sm text-gray-700 mb-4">
+                    <h3 class="font-bold text-3xl text-indigo-700 mb-4">${item.Item}</h3>
+                    <div class="grid grid-cols-2 gap-4 text-base text-gray-700 mb-6">
                         <div><strong>ID:</strong> ${id}</div>
                         <div><strong>Scatola:</strong> ${box}</div>
                         ${prezzoVendita ? `<div><strong>Prezzo:</strong> <strong>${prezzoVendita}</strong></div>` : '<div></div>'}
                         <div><strong>Preferiti da:</strong> ${grouped[uuid].length} utente/i</div>
                     </div>
-                    ${users ? `<div class="pt-4 border-t text-sm space-y-1">${users}</div>` : ''}
+                    ${users ? `<div class="pt-6 border-t text-base space-y-2">${users}</div>` : ''}
                 </div>
 
                 ${badge}
@@ -356,18 +360,16 @@
 
         // SALVA STATUS – SOLO IN ADMIN.HTML
         async function saveStatus(uuid, newStatus, vendutoA = '') {
-            // Controllo admin (doppio: UI + Firebase)
             if (!window.currentUser || !window.isAdmin(window.currentUser)) {
                 alert('Accesso negato');
                 return;
             }
 
-            // Torna Disponibile → rimuovi dal DB
             if (newStatus === 'Disponibile') {
                 try {
                     await db.ref('status/' + uuid).remove();
                     alert('Oggetto tornato Disponibile');
-                    loadAllFavorites(); // ricarica admin
+                    loadAllFavorites();
                 } catch (e) {
                     alert('Errore');
                 }
