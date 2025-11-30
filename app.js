@@ -164,7 +164,7 @@ async function toggleFavorite(uuid) {
   const key = email.replace(/\./g, '_');
   let list = (window.preferitiData[email] || []).slice();
 
-  const index = list.findIndex(entry => 
+  const index = list.findIndex(entry =>
     (typeof entry === 'string' ? entry : entry.id) === uuid
   );
 
@@ -192,36 +192,36 @@ async function toggleFavorite(uuid) {
 }
 
 function updateHeartIcon(uuid, isAdded) {
-    const card = document.querySelector(`[data-uuid="${uuid}"]`);
-    if (!card) return;
+  const card = document.querySelector(`[data-uuid="${uuid}"]`);
+  if (!card) return;
 
-    const svg = card.querySelector('.heart-btn svg');
-    if (!svg) return;
+  const svg = card.querySelector('.heart-btn svg');
+  if (!svg) return;
 
-    if (isAdded) {
-        svg.classList.remove('text-gray-500');
-        svg.classList.add('text-red-500', 'fill-red-500');
-    } else {
-        svg.classList.remove('text-red-500', 'fill-red-500');
-        svg.classList.add('text-gray-500');
-    }
+  if (isAdded) {
+    svg.classList.remove('text-gray-500');
+    svg.classList.add('text-red-500', 'fill-red-500');
+  } else {
+    svg.classList.remove('text-red-500', 'fill-red-500');
+    svg.classList.add('text-gray-500');
+  }
 
-    card.classList.add('scale-105', 'transition-transform');
-    setTimeout(() => card.classList.remove('scale-105'), 200);
+  card.classList.add('scale-105', 'transition-transform');
+  setTimeout(() => card.classList.remove('scale-105'), 200);
 }
 
 function updatePreferitiCount() {
-    const countEl = document.getElementById('preferitiCount');
-    if (countEl && window.currentUser) {
-        const count = (window.preferitiData[window.currentUser.email] || []).length;
-        countEl.textContent = count;
-    }
+  const countEl = document.getElementById('preferitiCount');
+  if (countEl && window.currentUser) {
+    const count = (window.preferitiData[window.currentUser.email] || []).length;
+    countEl.textContent = count;
+  }
 }
 
 function isFavorite(uuid) {
   if (!window.currentUser?.email) return false;
   const list = window.preferitiData[window.currentUser.email] || [];
-  return list.some(entry => 
+  return list.some(entry =>
     typeof entry === 'string' ? entry === uuid : entry.id === uuid
   );
 }
@@ -258,7 +258,7 @@ function renderPreferitiSidebar() {
   const email = window.currentUser?.email;
   let list = email ? (window.preferitiData[email] || []) : [];
 
-  list = list.map(entry => 
+  list = list.map(entry =>
     typeof entry === 'string' ? { id: entry, added: new Date().toISOString() } : entry
   );
 
@@ -404,7 +404,7 @@ function renderGrid(loadMore = false) {
     const item = filtered[i];
     const div = document.createElement('div');
     div.className = 'bg-white rounded overflow-hidden shadow cursor-pointer hover:shadow-lg transition-shadow relative';
-    
+
     div.dataset.uuid = item.UUID;
 
     const isSold = (item.Status || '').trim() === 'Venduto';
@@ -422,6 +422,16 @@ function renderGrid(loadMore = false) {
     </svg>
   </button>`;
 
+    // BOTTONE EDITING ADMIN (solo se admin)
+    const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
+      <button onclick="event.stopPropagation(); openEditModal('${item.UUID}')" 
+              class="absolute top-2 left-2 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition z-10">
+        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+      </button>` : '';
+
     const statusHtml = isSold
       ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>'
       : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
@@ -431,6 +441,7 @@ function renderGrid(loadMore = false) {
         <img src="images/${item.Photos[0]}" alt="${item.Item}" class="max-h-full max-w-full object-contain transition-transform hover:scale-105" onerror="this.src='images/placeholder.jpg'">
         ${photoCountBadge}
         ${heartIcon}
+        ${editButton}
       </div>
       <div class="p-3 h-32 flex flex-col justify-between bg-white">
         <div>

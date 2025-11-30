@@ -215,8 +215,18 @@
                             badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                         }
 
+                        // BOTTONE EDITING ADMIN (solo se admin)
+                        const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
+                            <button onclick="event.stopPropagation(); openEditModal('${d.id}')"
+                                    class="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition z-10">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>` : '';
+
                         return `
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-4 py-4 border-b last:border-0">
+                    <div class="relative flex flex-col sm:flex-row sm:items-center gap-4 py-4 border-b last:border-0">
                         <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
                              class="w-14 h-14 object-cover rounded flex-shrink-0" 
                              onerror="this.src='images/placeholder.jpg'">
@@ -235,6 +245,8 @@
                             </div>
                             ${badge}
                         </div>
+
+                        ${editButton}
                     </div>
                 `;
                     }).join('');
@@ -303,8 +315,18 @@
                 <div class="text-sm">${u.email} — ${u.added ? new Date(u.added).toLocaleDateString('it-IT') : '—'}</div>
             `).join('');
 
+                // BOTTONE EDITING ADMIN (solo se admin)
+                const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
+                    <button onclick="event.stopPropagation(); openEditModal('${uuid}')" 
+                            class="absolute top-6 right-6 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition z-10">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </button>` : '';
+
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-xl shadow-md p-6 border border-gray-100';
+                card.className = 'bg-white rounded-xl shadow-md p-6 border border-gray-100 relative'; // ← aggiunto relative
 
                 card.innerHTML = `
             <div class="flex flex-col lg:flex-row gap-6">
@@ -324,6 +346,7 @@
                 </div>
 
                 ${badge}
+                ${editButton}
             </div>
         `;
 
@@ -370,6 +393,7 @@
         // AVVIO
         waitForUser();
     </script>
+    <script src="edit-modal.js"></script>
 </body>
 
 </html>
