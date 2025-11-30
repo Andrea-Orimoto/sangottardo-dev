@@ -166,7 +166,7 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
-        // VISTA PER UTENTE — NOME OGGETTO PIÙ PICCOLO SU MOBILE
+        // VISTA PER UTENTE — invariata (come hai ora)
         function renderByUser(data) {
             const container = document.getElementById('users-list');
             const grouped = {};
@@ -210,7 +210,6 @@
                             badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                         }
 
-                        // BOTTONE EDITING — ELEGANTE E NON INVADENTE
                         const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
                             <button onclick="event.stopPropagation(); openEditModal('${d.id}')"
                                     class="absolute top-3 left-3 bg-white/85 hover:bg-white/95 backdrop-blur-sm rounded-full p-3 shadow-xl transition-all z-20 border-2 border-white">
@@ -269,7 +268,7 @@
             });
         }
 
-        // VISTA PER OGGETTO – invariata
+        // VISTA PER OGGETTO — COMPATTA, CON THUMBNAIL PIÙ PICCOLA E BOTTONE IN OVERLAY
         function renderByItem(data) {
             const container = document.getElementById('items-list');
             const grouped = {};
@@ -299,60 +298,80 @@
                 let badge = '';
                 if (currentStatus === 'Venduto') {
                     badge = `
-                <div class="text-right">
-                    <span class="badge-venduto">VENDUTO</span>
-                    ${statusInfo.vendutoA && statusInfo.data ? `
-                        <div class="text-xs text-gray-600 mt-2 leading-tight">
-                            a <strong>${statusInfo.vendutoA}</strong><br>
-                            il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
-                        </div>
-                    ` : ''}
-                </div>`;
+                        <div class="text-right">
+                            <span class="badge-venduto">VENDUTO</span>
+                            ${statusInfo.vendutoA && statusInfo.data ? `
+                                <div class="text-xs text-gray-600 mt-1 leading-tight">
+                                    a <strong>${statusInfo.vendutoA}</strong><br>
+                                    il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
+                                </div>
+                            ` : ''}
+                        </div>`;
                 } else if (currentStatus === 'Prenotato') {
                     badge = `<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>`;
                 } else {
                     badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                 }
 
-                const users = grouped[uuid]
-                    .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0))
-                    .map(u => `
-                <div class="text-sm">${u.email} — ${u.added ? new Date(u.added).toLocaleDateString('it-IT') : '—'}</div>
-            `).join('');
-
                 const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
-                    <button onclick="event.stopPropagation(); openEditModal('${uuid}')" 
-                            class="absolute top-6 right-6 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition z-10">
-                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    <button onclick="event.stopPropagation(); openEditModal('${uuid}')"
+                            class="absolute top-3 left-3 bg-white/85 hover:bg-white/95 backdrop-blur-sm rounded-full p-3 shadow-xl transition-all z-20 border-2 border-white">
+                        <svg class="w-6 h-6 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                     </button>` : '';
 
+                const usersList = grouped[uuid]
+                    .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0))
+                    .map(u => {
+                        const date = u.added 
+                            ? new Date(u.added).toLocaleDateString('it-IT', { 
+                                day: '2-digit', 
+                                month: 'short', 
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }).replace(',', ' alle')
+                            : '—';
+                        return `<div class="text-sm">${u.email}<span class="text-gray-500"> — ${date}</span></div>`;
+                    }).join('');
+
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-2xl shadow-lg p-8 border border-gray-100 relative';
+                card.className = 'bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow';
 
                 card.innerHTML = `
-            <div class="flex flex-col lg:flex-row gap-8">
-                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
-                     class="w-32 h-32 object-cover rounded-2xl shadow-xl flex-shrink-0" 
-                     onerror="this.src='images/placeholder.jpg'">
+                    <div class="relative flex items-center gap-6 py-5 border-b border-gray-100 last:border-0">
+                        <div class="relative flex-shrink-0">
+                            <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
+                                 class="w-20 h-20 object-cover rounded-2xl shadow-lg" 
+                                 onerror="this.src='images/placeholder.jpg'">
+                            ${editButton}
+                        </div>
 
-                <div class="flex-1">
-                    <h3 class="font-bold text-3xl text-indigo-700 mb-4">${item.Item}</h3>
-                    <div class="grid grid-cols-2 gap-4 text-base text-gray-700 mb-6">
-                        <div><strong>ID:</strong> ${id}</div>
-                        <div><strong>Scatola:</strong> ${box}</div>
-                        ${prezzoVendita ? `<div><strong>Prezzo:</strong> <strong>${prezzoVendita}</strong></div>` : '<div></div>'}
-                        <div><strong>Preferiti da:</strong> ${grouped[uuid].length} utente/i</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-lg sm:text-xl leading-tight">${item.Item}</div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                ID: ${id} • Scatola: ${box}
+                                ${prezzoVendita ? ` • Prezzo: <strong>${prezzoVendita}</strong>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="text-right">
+                            ${badge}
+                        </div>
                     </div>
-                    ${users ? `<div class="pt-6 border-t text-base space-y-2">${users}</div>` : ''}
-                </div>
 
-                ${badge}
-                ${editButton}
-            </div>
-        `;
+                    ${usersList ? `
+                    <div class="pt-5">
+                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            Aggiunto da (${grouped[uuid].length})
+                        </div>
+                        <div class="space-y-1 text-sm">
+                            ${usersList}
+                        </div>
+                    </div>` : ''}
+                `;
 
                 container.appendChild(card);
             });
