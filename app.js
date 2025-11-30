@@ -19,14 +19,10 @@ window.preferitiData = {};        // ← NEW: global favorites per user
 
 async function init() {
   try {
-    // 1. Load items first
     await loadCSVAndStatus();
     console.log("INIT: Items loaded →", allItems.length);
 
-    // 2. THEN load preferiti (this sets window.preferitiData correctly)
-    await loadPreferiti();   // ← this now fully populates preferitiData
-
-    // DO NOT renderGrid() here — loadPreferiti() will do it!
+    await loadPreferiti();
 
   } catch (e) {
     console.error("INIT FAILED:", e);
@@ -43,19 +39,17 @@ async function init() {
     return;
   }
 
-  // Grid is rendered inside loadPreferiti() → correct data guaranteed
   console.log('INIT: Grid rendered');
   setupFilters();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
 
-  // Sidebar toggle — FIXED for mobile
   document.getElementById('preferitiToggle')?.addEventListener('click', (e) => {
-    e.stopPropagation();  // ← ADD: Prevent bubbling to header
+    e.stopPropagation();
     const sidebar = document.getElementById('preferitiSidebar');
     const overlay = document.getElementById('preferitiOverlay');
     sidebar.classList.toggle('-translate-x-full');
     overlay.classList.toggle('hidden');
-  }, { passive: false });  // ← ADD: For touch events on mobile
+  }, { passive: false });
 
   document.getElementById('closePreferiti')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -65,18 +59,16 @@ async function init() {
     overlay.classList.add('hidden');
   }, { passive: false });
 
-  // Overlay click to close — FIXED to not block grid touches
   document.getElementById('preferitiOverlay')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const sidebar = document.getElementById('preferitiSidebar');
     sidebar.classList.add('-translate-x-full');
-    e.target.classList.add('hidden');  // ← Self-hide
+    e.target.classList.add('hidden');
   }, { passive: false });
 }
 
 async function loadCSVAndStatus() {
   try {
-    // 1. Carica il CSV (uguale a prima – perfetto)
     const resp = await fetch('data/items.csv');
     const text = await resp.text();
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
@@ -92,23 +84,25 @@ async function loadCSVAndStatus() {
 
     allItems = Array.from(map.values());
 
-    // 2. CARICA STATUS DA FIREBASE (nuovo!)
+    // CARICA STATUS DA FIREBASE + ESPONE DATI
     try {
       const snapshot = await db.ref('status').once('value');
       const statusData = snapshot.val() || {};
 
+      // ESPONIAMO I DATI PER TUTTO IL SITO
+      window.allStatus = statusData;
+
       allItems.forEach(item => {
         const fbEntry = statusData[item.UUID];
         if (fbEntry && fbEntry.stato) {
-          item.Status = fbEntry.stato;  // "Venduto", "Prenotato", ecc.
+          item.Status = fbEntry.stato;
         } else {
-          item.Status = '';  // Disponibile
+          item.Status = '';
         }
       });
       console.log('Status caricati da Firebase:', Object.keys(statusData).length);
     } catch (e) {
       console.warn('Impossibile caricare status da Firebase (normale se offline)', e);
-      // Non blocca nulla – gli item rimangono "Disponibile"
     }
 
   } catch (e) {
@@ -117,9 +111,7 @@ async function loadCSVAndStatus() {
   }
 }
 
-// ============ PREFERITI SYSTEM ============
-// Firebase config — incolla la tua qui
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCq_W69Eab67KpnX8HTEkzRHBW7TB_6daQ",
   authDomain: "san-gottardo-preferiti.firebaseapp.com",
@@ -131,14 +123,11 @@ const firebaseConfig = {
   measurementId: "G-LSLDZBSJFR"
 };
 
-// Inizializza Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-
 // Carica preferiti da Firebase
-// ---- FUNZIONE 1: loadPreferiti (sostituisci tutta) ----
 async function loadPreferiti() {
   if (!window.currentUser) {
     window.preferitiData = {};
@@ -164,8 +153,7 @@ async function loadPreferiti() {
   updatePreferitiCount();
 }
 
-// Salva su Firebase (istantaneo!)
-// 1. toggleFavorite — ora salva la data (compatibile con vecchi dati)
+// toggleFavorite
 async function toggleFavorite(uuid) {
   if (!window.currentUser) {
     alert("Devi effettuare il login per salvare i Preferiti");
@@ -176,7 +164,6 @@ async function toggleFavorite(uuid) {
   const key = email.replace(/\./g, '_');
   let list = (window.preferitiData[email] || []).slice();
 
-  // Trova se esiste già
   const index = list.findIndex(entry => 
     (typeof entry === 'string' ? entry : entry.id) === uuid
   );
@@ -195,18 +182,15 @@ async function toggleFavorite(uuid) {
 
   window.preferitiData[email] = list;
 
-  // FIX: Aggiorna solo cuore e contatore — NIENTE renderGrid()!
   updateHeartIcon(uuid, isNowFavorite);
   updatePreferitiCount();
   renderPreferitiSidebar();
 
-  // Salva su Firebase
   db.ref('preferiti/' + key).set(list.length > 0 ? list : null)
     .then(() => console.log("Preferiti salvati su Firebase"))
     .catch(e => console.warn("Errore salvataggio Firebase:", e));
 }
 
-// 1. Aggiorna solo l'icona del cuore (senza ricaricare tutta la griglia)
 function updateHeartIcon(uuid, isAdded) {
     const card = document.querySelector(`[data-uuid="${uuid}"]`);
     if (!card) return;
@@ -222,12 +206,10 @@ function updateHeartIcon(uuid, isAdded) {
         svg.classList.add('text-gray-500');
     }
 
-    // Piccolo feedback visivo
     card.classList.add('scale-105', 'transition-transform');
     setTimeout(() => card.classList.remove('scale-105'), 200);
 }
 
-// 2. Aggiorna solo il contatore dei preferiti
 function updatePreferitiCount() {
     const countEl = document.getElementById('preferitiCount');
     if (countEl && window.currentUser) {
@@ -236,13 +218,6 @@ function updatePreferitiCount() {
     }
 }
 
-// Integra con il tuo login esistente
-// In auth.js, in handleCredentialResponse, dopo window.currentUser = ... :
-if (window.currentUser && window.currentUser.id) {
-  auth.signInWithCustomToken(window.currentUser.id).catch(() => { });
-}
-
-// Aggiorna isFavorite per usare Firebase data
 function isFavorite(uuid) {
   if (!window.currentUser?.email) return false;
   const list = window.preferitiData[window.currentUser.email] || [];
@@ -251,16 +226,14 @@ function isFavorite(uuid) {
   );
 }
 
-// NUOVA handleHeartClick — restituisce Promise
 window.handleHeartClick = async function (uuid) {
   if (!window.currentUser) {
     alert("Devi effettuare il login per salvare i Preferiti");
     return;
   }
 
-  await toggleFavorite(uuid);  // ← ASPETTA che finisca!
+  await toggleFavorite(uuid);
 
-  // Ora possiamo aggiornare il cuore nel modal in modo sicuro
   const modalHeartBtn = document.querySelector('.swiper button[data-heart]');
   if (modalHeartBtn) {
     const isNowFavorite = isFavorite(uuid);
@@ -269,11 +242,8 @@ window.handleHeartClick = async function (uuid) {
   }
 };
 
-// ============ FINAL PREFERITI SYSTEM — NO MORE CONFLICTS ============
 let isSavingPreferiti = false;
 let saveQueue = [];
-
-
 
 function updatePreferitiCount() {
   const count = window.currentUser ? (window.preferitiData[window.currentUser.email] || []).length : 0;
@@ -281,7 +251,6 @@ function updatePreferitiCount() {
   if (el) el.textContent = count;
 }
 
-// 2. renderPreferitiSidebar — identica alla tua, ma con data e ordine
 function renderPreferitiSidebar() {
   const container = document.getElementById('preferitiList');
   if (!container) return;
@@ -289,7 +258,6 @@ function renderPreferitiSidebar() {
   const email = window.currentUser?.email;
   let list = email ? (window.preferitiData[email] || []) : [];
 
-  // Normalizza: converte vecchie stringhe in oggetti con data
   list = list.map(entry => 
     typeof entry === 'string' ? { id: entry, added: new Date().toISOString() } : entry
   );
@@ -300,7 +268,6 @@ function renderPreferitiSidebar() {
     return;
   }
 
-  // Ordina per data (più recente sopra)
   list.sort((a, b) => new Date(b.added) - new Date(a.added));
 
   document.getElementById('preferitiCount').textContent = list.length;
@@ -338,12 +305,14 @@ function renderPreferitiSidebar() {
   container.appendChild(fragment);
 }
 
-// ==========================================
-
+// PREZZO SOLO DA FIREBASE (UNICA MODIFICA!)
 function formatPrice(item) {
-  const price = item['Purchase Price'];
-  const currency = item['Purchase Currency'] || 'EUR';
-  return price ? `${price} ${currency}` : '—';
+  const statusInfo = window.allStatus?.[item.UUID] || {};
+  const prezzo = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
+    ? statusInfo.prezzo.trim()
+    : null;
+
+  return prezzo ? `<strong>${prezzo}</strong>` : '—';
 }
 
 function filterItems() {
@@ -366,8 +335,6 @@ function filterItems() {
 }
 
 function setupFilters() {
-  // ... your existing code unchanged ...
-  // (category filter, status filter, search, etc.)
   const sel = document.getElementById('catFilter');
   const totalItems = allItems.length;
 
@@ -391,7 +358,6 @@ function setupFilters() {
     sel.appendChild(opt);
   });
 
-  // Status filter
   const statusSel = document.createElement('select');
   statusSel.id = 'statusFilter';
   statusSel.className = 'ml-2 p-2 border rounded';
@@ -399,7 +365,6 @@ function setupFilters() {
   statusSel.addEventListener('change', () => { displayed = 0; renderGrid(); });
   document.querySelector('#filters').appendChild(statusSel);
 
-  // Search + URL handling unchanged...
   let timeout;
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
@@ -440,11 +405,9 @@ function renderGrid(loadMore = false) {
     const div = document.createElement('div');
     div.className = 'bg-white rounded overflow-hidden shadow cursor-pointer hover:shadow-lg transition-shadow relative';
     
-    // UNICA MODIFICA: aggiungo data-uuid qui
     div.dataset.uuid = item.UUID;
 
     const isSold = (item.Status || '').trim() === 'Venduto';
-    const favorite = isFavorite(item.UUID);
 
     const photoCountBadge = item.Photos.length > 1 ? `
       <div class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -476,7 +439,7 @@ function renderGrid(loadMore = false) {
           <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
         </div>
         <div class="flex justify-between items-center">
-          <p class="text-sm font-medium text-indigo-600">Price: ${formatPrice(item)}</p>
+          <p class="text-sm font-medium text-indigo-600">Prezzo: ${formatPrice(item)}</p>
           <div class="mt-1">${statusHtml}</div>
         </div>
       </div>
@@ -497,7 +460,6 @@ function renderGrid(loadMore = false) {
   document.getElementById('preferitiCount').textContent = count;
 }
 
-// ====== openModal() with heart ======
 function openModal(item) {
   document.getElementById('modalTitle').textContent = item.Item;
   document.getElementById('modalDesc').innerHTML = `
@@ -506,7 +468,7 @@ function openModal(item) {
     <strong>Scatola:</strong> ${item.Categories || '—'}<br>
     ${item.Notes ? `<strong>Notes:</strong><br><span class="text-sm italic text-gray-700">${item.Notes.replace(/\n/g, '<br>')}</span><br>` : ''}
     ${item['Purchase Date'] ? `<strong>Purchased:</strong> ${item['Purchase Date']}<br>` : ''}
-    <strong>Price:</strong> ${formatPrice(item)}
+    <strong>Prezzo:</strong> ${formatPrice(item)}
   `;
 
   const wrapper = document.getElementById('swiperWrapper');
@@ -518,8 +480,6 @@ function openModal(item) {
     wrapper.appendChild(slide);
   });
 
-  // Add heart in modal top-right
-  // Rimuovi cuore precedente
   document.querySelector('.swiper button[data-heart]')?.remove();
 
   const modalHeart = document.createElement('button');
@@ -534,10 +494,10 @@ function openModal(item) {
 
   modalHeart.onclick = async (e) => {
     e.stopPropagation();
-    await handleHeartClick(item.UUID);  // ← AWAIT the toggle — ensures data is updated
+    await handleHeartClick(item.UUID);
     const newFavorite = isFavorite(item.UUID);
     modalHeart.innerHTML = `
-    <svg class="w-7 h-7 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}"
+    <svg class="w-7 h-7 ${newFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}"
         viewBox="0 0 24 24" fill="currentColor">
       <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
     </svg>
@@ -562,6 +522,5 @@ function openModal(item) {
 
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
-  // Clean heart from modal
-  document.querySelector('.swiper button')?.remove();
+  document.querySelector('.swiper button[data-heart]')?.remove();
 }
