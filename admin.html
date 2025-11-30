@@ -188,10 +188,14 @@
 
                         const id = item['Serial No'] || '—';
                         const box = item.Categories || '—';
-                        const price = item['Purchase Price'] ? `${item['Purchase Price']} ${item['Purchase Currency'] || 'EUR'}` : '—';
 
                         const statusInfo = window.allStatus?.[d.id] || {};
                         const currentStatus = item.Status || 'Disponibile';
+
+                        // Prezzo SOLO da Firebase (una volta sola!)
+                        const prezzoVendita = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
+                            ? statusInfo.prezzo
+                            : null;
 
                         let badge = '';
                         if (currentStatus === 'Venduto') {
@@ -199,9 +203,9 @@
                         <div class="text-right">
                             <span class="badge-venduto">VENDUTO</span>
                             ${statusInfo.vendutoA && statusInfo.data ? `
-                                <div class="text-xs text-gray-500 mt-1">
+                                <div class="text-xs text-gray-600 mt-1 leading-tight">
                                     a <strong>${statusInfo.vendutoA}</strong><br>
-                                    ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
+                                    il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
                                 </div>
                             ` : ''}
                         </div>`;
@@ -220,7 +224,8 @@
                         <div class="flex-1 min-w-0">
                             <div class="font-medium text-base">${item.Item}</div>
                             <div class="text-xs text-gray-600 mt-1">
-                                ID: ${id} • Scatola: ${box} • Prezzo: ${price}
+                                ID: ${id} • Scatola: ${box}
+                                ${prezzoVendita ? ` • Prezzo: <strong>${prezzoVendita}</strong>` : ''}
                             </div>
                         </div>
 
@@ -265,10 +270,14 @@
 
                 const id = item['Serial No'] || '—';
                 const box = item.Categories || '—';
-                const price = item['Purchase Price'] ? `${item['Purchase Price']} ${item['Purchase Currency'] || 'EUR'}` : '—';
 
                 const statusInfo = window.allStatus?.[uuid] || {};
                 const currentStatus = item.Status || 'Disponibile';
+
+                // Prezzo SOLO da Firebase (una volta sola!)
+                const prezzoVendita = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
+                    ? statusInfo.prezzo
+                    : null;
 
                 let badge = '';
                 if (currentStatus === 'Venduto') {
@@ -276,9 +285,9 @@
                 <div class="text-right">
                     <span class="badge-venduto">VENDUTO</span>
                     ${statusInfo.vendutoA && statusInfo.data ? `
-                        <div class="text-xs text-gray-600 mt-2">
+                        <div class="text-xs text-gray-600 mt-2 leading-tight">
                             a <strong>${statusInfo.vendutoA}</strong><br>
-                            ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
+                            il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
                         </div>
                     ` : ''}
                 </div>`;
@@ -308,7 +317,7 @@
                     <div class="grid grid-cols-2 gap-3 text-sm text-gray-700 mb-4">
                         <div><strong>ID:</strong> ${id}</div>
                         <div><strong>Scatola:</strong> ${box}</div>
-                        <div><strong>Prezzo:</strong> ${price}</div>
+                        ${prezzoVendita ? `<div><strong>Prezzo:</strong> <strong>${prezzoVendita}</strong></div>` : '<div></div>'}
                         <div><strong>Preferiti da:</strong> ${grouped[uuid].length} utente/i</div>
                     </div>
                     ${users ? `<div class="pt-4 border-t text-sm space-y-1">${users}</div>` : ''}
