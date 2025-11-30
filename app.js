@@ -176,15 +176,17 @@ async function toggleFavorite(uuid) {
   const key = email.replace(/\./g, '_');
   let list = (window.preferitiData[email] || []).slice();
 
-  // Trova se esiste già (supporta sia stringa che oggetto)
+  // Trova se esiste già
   const index = list.findIndex(entry => 
     (typeof entry === 'string' ? entry : entry.id) === uuid
   );
 
-  if (index > -1) {
+  const wasFavorite = index > -1;
+  const isNowFavorite = !wasFavorite;
+
+  if (wasFavorite) {
     list.splice(index, 1);
   } else {
-    // Aggiunge con data
     list.push({
       id: uuid,
       added: new Date().toISOString()
@@ -192,14 +194,46 @@ async function toggleFavorite(uuid) {
   }
 
   window.preferitiData[email] = list;
-  renderGrid();
+
+  // FIX: Aggiorna solo cuore e contatore — NIENTE renderGrid()!
+  updateHeartIcon(uuid, isNowFavorite);
+  updatePreferitiCount();
   renderPreferitiSidebar();
-  updatePreferitiCount?.() || (document.getElementById('preferitiCount').textContent = list.length);
 
   // Salva su Firebase
-  db.ref('preferiti/' + key).set(list)
+  db.ref('preferiti/' + key).set(list.length > 0 ? list : null)
     .then(() => console.log("Preferiti salvati su Firebase"))
     .catch(e => console.warn("Errore salvataggio Firebase:", e));
+}
+
+// 1. Aggiorna solo l'icona del cuore (senza ricaricare tutta la griglia)
+function updateHeartIcon(uuid, isAdded) {
+    const card = document.querySelector(`[data-uuid="${uuid}"]`);
+    if (!card) return;
+
+    const svg = card.querySelector('.heart-btn svg');
+    if (!svg) return;
+
+    if (isAdded) {
+        svg.classList.remove('text-gray-500');
+        svg.classList.add('text-red-500', 'fill-red-500');
+    } else {
+        svg.classList.remove('text-red-500', 'fill-red-500');
+        svg.classList.add('text-gray-500');
+    }
+
+    // Piccolo feedback visivo
+    card.classList.add('scale-105', 'transition-transform');
+    setTimeout(() => card.classList.remove('scale-105'), 200);
+}
+
+// 2. Aggiorna solo il contatore dei preferiti
+function updatePreferitiCount() {
+    const countEl = document.getElementById('preferitiCount');
+    if (countEl && window.currentUser) {
+        const count = (window.preferitiData[window.currentUser.email] || []).length;
+        countEl.textContent = count;
+    }
 }
 
 // Integra con il tuo login esistente
@@ -405,6 +439,9 @@ function renderGrid(loadMore = false) {
     const item = filtered[i];
     const div = document.createElement('div');
     div.className = 'bg-white rounded overflow-hidden shadow cursor-pointer hover:shadow-lg transition-shadow relative';
+    
+    // UNICA MODIFICA: aggiungo data-uuid qui
+    div.dataset.uuid = item.UUID;
 
     const isSold = (item.Status || '').trim() === 'Venduto';
     const favorite = isFavorite(item.UUID);
@@ -416,7 +453,7 @@ function renderGrid(loadMore = false) {
       </div>` : '';
 
     const heartIcon = `
-  <button onclick="event.stopPropagation(); handleHeartClick('${item.UUID}')" class="absolute top-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition z-10">
+  <button onclick="event.stopPropagation(); handleHeartClick('${item.UUID}')" class="heart-btn absolute top-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition z-10">
     <svg class="w-5 h-5 ${isFavorite(item.UUID) ? 'fill-red-500 text-red-500' : 'text-gray-500'}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
       <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" fill="currentColor"></path>
     </svg>
@@ -455,8 +492,7 @@ function renderGrid(loadMore = false) {
   displayed = end;
   document.getElementById('loadMore').classList.toggle('hidden', displayed >= filtered.length);
 
-  renderPreferitiSidebar();   // ← keep sidebar in sync
-  // Update header count
+  renderPreferitiSidebar();
   const count = window.currentUser ? (window.preferitiData[window.currentUser.email] || []).length : 0;
   document.getElementById('preferitiCount').textContent = count;
 }
