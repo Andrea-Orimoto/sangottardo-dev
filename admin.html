@@ -10,15 +10,14 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script> <!-- QUESTA -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="auth.js"></script>
-
-    <meta name="google-signin-client_id"
-        content="1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com">
 </head>
 
 <body class="bg-gray-50 text-gray-800 min-h-screen">
+
     <div class="container mx-auto p-6 max-w-7xl">
         <header class="flex justify-between items-center mb-10 pb-6 border-b">
             <div class="flex items-center gap-6">
@@ -28,9 +27,8 @@
                 <h1 class="text-3xl font-bold">Admin</h1>
             </div>
             <div class="flex items-center gap-4">
-                <div id="googleSignIn"></div>
                 <div id="userInfo" class="hidden flex items-center gap-3">
-                    <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indigo-600" src="" alt="">
+                    <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indig o-600" src="" alt="">
                 </div>
                 <button id="logoutBtn"
                     class="hidden bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded transition">
@@ -52,7 +50,9 @@
         </div>
 
         <div id="loading" class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+            <div
+                class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent">
+            </div>
             <p class="mt-4 text-gray-600">Caricamento preferiti...</p>
         </div>
 
@@ -102,7 +102,7 @@
         function waitForUser() {
             if (window.currentUser && window.currentUser.email) {
                 document.getElementById('userInfo').classList.remove('hidden');
-                document.getElementById('userPhoto').src = window.currentUser.photo || '';
+                document.getElementById('userPhoto').src = window.currentUser.picture || '';
                 document.getElementById('logoutBtn').classList.remove('hidden');
                 loadAllFavorites();
             } else {
@@ -166,7 +166,7 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
-        // VISTA PER UTENTE — invariata (come hai ora)
+        // VISTA PER UTENTE — invariata
         function renderByUser(data) {
             const container = document.getElementById('users-list');
             const grouped = {};
@@ -219,14 +219,14 @@
                                 </svg>
                             </button>` : '';
 
-                        const addedDate = d.added 
-                            ? new Date(d.added).toLocaleDateString('it-IT', { 
-                                day: '2-digit', 
-                                month: 'short', 
+                        const addedDate = d.added
+                            ? new Date(d.added).toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: 'short',
                                 year: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit'
-                              }).replace(',', ' alle')
+                            }).replace(',', ' alle')
                             : 'Data non disponibile';
 
                         return `
@@ -268,7 +268,7 @@
             });
         }
 
-        // VISTA PER OGGETTO — COMPATTA, CON THUMBNAIL PIÙ PICCOLA E BOTTONE IN OVERLAY
+        // VISTA PER OGGETTO — COMPATTA E BELLA
         function renderByItem(data) {
             const container = document.getElementById('items-list');
             const grouped = {};
@@ -325,14 +325,14 @@
                 const usersList = grouped[uuid]
                     .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0))
                     .map(u => {
-                        const date = u.added 
-                            ? new Date(u.added).toLocaleDateString('it-IT', { 
-                                day: '2-digit', 
-                                month: 'short', 
+                        const date = u.added
+                            ? new Date(u.added).toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: 'short',
                                 year: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit'
-                              }).replace(',', ' alle')
+                            }).replace(',', ' alle')
                             : '—';
                         return `<div class="text-sm">${u.email}<span class="text-gray-500"> — ${date}</span></div>`;
                     }).join('');
@@ -375,40 +375,6 @@
 
                 container.appendChild(card);
             });
-        }
-
-        // SALVA STATUS – SOLO IN ADMIN.HTML
-        async function saveStatus(uuid, newStatus, vendutoA = '') {
-            if (!window.currentUser || !window.isAdmin(window.currentUser)) {
-                alert('Accesso negato');
-                return;
-            }
-
-            if (newStatus === 'Disponibile') {
-                try {
-                    await db.ref('status/' + uuid).remove();
-                    alert('Oggetto tornato Disponibile');
-                    loadAllFavorites();
-                } catch (e) {
-                    alert('Errore');
-                }
-                return;
-            }
-
-            const payload = {
-                stato: newStatus,
-                data: new Date().toISOString().split('T')[0],
-                vendutoA: vendutoA.trim() || '—'
-            };
-
-            try {
-                await db.ref('status/' + uuid).set(payload);
-                alert(`Status aggiornato: ${newStatus}${vendutoA ? ' a ' + vendutoA : ''}`);
-                loadAllFavorites();
-            } catch (e) {
-                console.error(e);
-                alert('Errore salvataggio');
-            }
         }
 
         // AVVIO

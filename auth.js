@@ -1,4 +1,4 @@
-// auth.js – Versione FINALE SICURA (funziona anche se Firebase non è ancora caricato)
+// auth.js – Versione FINALE DEFINITIVA (funziona ovunque, anche in admin)
 
 const ADMIN_EMAILS = [
     'andrea.orimoto@gmail.com',
@@ -17,26 +17,17 @@ if (saved) window.currentUser = JSON.parse(saved);
 
 function handleCredentialResponse(response) {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    window.currentUser = {
-        name: payload.name,
-        email: payload.email,
-        picture: payload.picture
-    };
+    window.currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
     localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
 
-    // AUTENTICA SU FIREBASE SOLO SE È CARICATO
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-        const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-        firebase.auth().signInWithCredential(credential)
-            .then(() => console.log("Firebase Auth OK:", window.currentUser.email))
-            .catch(err => console.warn("Firebase auth non disponibile (normale se offline):", err));
-    }
+    // Questo ora funziona perché hai firebase-auth-compat.js
+    const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+    firebase.auth().signInWithCredential(credential)
+        .then(() => console.log("Firebase Auth OK"))
+        .catch(err => console.error("Firebase Auth error:", err));
 
     window.updateAuthUI?.();
-
-    if (window.loadPreferiti) {
-        window.loadPreferiti();
-    }
+    if (window.loadPreferiti) window.loadPreferiti();
 }
 
 window.logout = function () {
@@ -44,9 +35,8 @@ window.logout = function () {
     localStorage.removeItem('sgUser');
     google.accounts.id.disableAutoSelect();
 
-    // Logout Firebase se esiste
     if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().signOut().catch(() => {});
+        firebase.auth().signOut().catch(() => { });
     }
 
     window.updateAuthUI?.();
@@ -94,8 +84,16 @@ window.onload = function () {
         callback: handleCredentialResponse
     });
 
-    if (window.location.pathname.includes('admin.html')) {
-        if (!window.currentUser || !window.isAdmin(window.currentUser)) {
+    const isAdminPage = window.location.pathname.includes('admin.html');
+
+    // Controllo admin
+    if (isAdminPage) {
+        if (!window.currentUser) {
+            window.location.href = 'index.html';
+            return;
+        }
+        if (!window.isAdmin(window.currentUser)) {
+            alert('Accesso negato: non sei admin');
             window.location.href = 'index.html';
             return;
         }
@@ -111,5 +109,19 @@ window.onload = function () {
 
     if (window.loadPreferiti && window.currentUser) {
         window.loadPreferiti();
+    }
+
+    // FORZA Firebase Auth in admin.html — aspetta che tutto sia pronto
+    if (isAdminPage) {
+        const checkAndForceAuth = () => {
+            if (firebase?.auth && window.currentUser && !firebase.auth().currentUser) {
+                console.log("Admin: forzo autenticazione Firebase...");
+                google.accounts.id.prompt();
+            }
+        };
+        // Prova subito e poi ogni 500ms per 3 secondi
+        checkAndForceAuth();
+        const interval = setInterval(checkAndForceAuth, 500);
+        setTimeout(() => clearInterval(interval), 3000);
     }
 };
