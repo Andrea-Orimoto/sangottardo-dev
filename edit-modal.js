@@ -112,7 +112,7 @@ if (!window.editModalInitialized) {
     window.currentEditingUUID = null;
   };
 
-window.saveObjectStatus = async function () {
+  window.saveObjectStatus = async function () {
     if (!window.currentEditingUUID) return;
 
     const status = document.getElementById('editStatus').value;
@@ -121,49 +121,49 @@ window.saveObjectStatus = async function () {
     const date = document.getElementById('editDate').value;
 
     const payload = {
-        stato: status || null,
-        prezzo: prezzo || null,
-        vendutoA: (status === 'Venduto' && buyer) ? buyer : null,
-        data: (status === 'Venduto' && date) ? date : null
+      stato: status || null,
+      prezzo: prezzo || null,
+      vendutoA: (status === 'Venduto' && buyer) ? buyer : null,
+      data: (status === 'Venduto' && date) ? date : null
     };
 
     Object.keys(payload).forEach(key => payload[key] === null && delete payload[key]);
 
     try {
-        if (Object.keys(payload).length === 0) {
-            await db.ref('status/' + window.currentEditingUUID).remove();
-        } else {
-            await db.ref('status/' + window.currentEditingUUID).set(payload);
+      if (Object.keys(payload).length === 0) {
+        await db.ref('status/' + window.currentEditingUUID).remove();
+      } else {
+        await db.ref('status/' + window.currentEditingUUID).set(payload);
+      }
+
+      const item = allItems.find(i => i.UUID === window.currentEditingUUID);
+      if (item) item.Status = status || '';
+
+      // AGGIORNAMENTO UNIVERSALE — FUNZIONA SU INDEX E ADMIN
+      document.querySelectorAll(`[data-uuid="${window.currentEditingUUID}"]`).forEach(card => {
+
+        // === INDEX.HTML (griglia) ===
+        const indexBadge = card.querySelector('.flex.justify-between.items-center > div:last-child');
+        if (indexBadge) {
+          let html = '';
+          if (status === 'Venduto') html = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>';
+          else if (status === 'Prenotato') html = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Prenotato</span>';
+          else html = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
+          indexBadge.innerHTML = html;
         }
 
-        const item = allItems.find(i => i.UUID === window.currentEditingUUID);
-        if (item) item.Status = status || '';
+        const indexPrice = card.querySelector('.text-indigo-600.font-medium');
+        if (indexPrice) {
+          const label = indexPrice.textContent.split(':')[0] + ':';
+          indexPrice.innerHTML = `<span class="text-sm font-medium text-indigo-600">${label} ${prezzo || '—'}</span>`;
+        }
 
-        // AGGIORNAMENTO UNIVERSALE — FUNZIONA SU INDEX E ADMIN
-        document.querySelectorAll(`[data-uuid="${window.currentEditingUUID}"]`).forEach(card => {
-
-            // === INDEX.HTML (griglia) ===
-            const indexBadge = card.querySelector('.flex.justify-between.items-center > div:last-child');
-            if (indexBadge) {
-                let html = '';
-                if (status === 'Venduto') html = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>';
-                else if (status === 'Prenotato') html = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Prenotato</span>';
-                else html = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
-                indexBadge.innerHTML = html;
-            }
-
-            const indexPrice = card.querySelector('.text-indigo-600.font-medium');
-            if (indexPrice) {
-                const label = indexPrice.textContent.split(':')[0] + ':';
-                indexPrice.innerHTML = `<span class="text-sm font-medium text-indigo-600">${label} ${prezzo || '—'}</span>`;
-            }
-
-            // === ADMIN.HTML (entrambe le viste) ===
-            const adminBadge = card.querySelector('.text-right');
-            if (adminBadge) {
-                let html = '';
-                if (status === 'Venduto') {
-                    html = `
+        // === ADMIN.HTML (entrambe le viste) ===
+        const adminBadge = card.querySelector('.text-right');
+        if (adminBadge) {
+          let html = '';
+          if (status === 'Venduto') {
+            html = `
                         <div class="text-right">
                             <span class="badge-venduto">VENDUTO</span>
                             ${buyer && date ? `
@@ -173,29 +173,29 @@ window.saveObjectStatus = async function () {
                                 </div>
                             ` : ''}
                         </div>`;
-                } else if (status === 'Prenotato') {
-                    html = '<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>';
-                } else {
-                    html = '<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>';
-                }
-                adminBadge.innerHTML = html;
-            }
+          } else if (status === 'Prenotato') {
+            html = '<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>';
+          } else {
+            html = '<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>';
+          }
+          adminBadge.innerHTML = html;
+        }
 
-            const adminPriceLine = card.querySelector('.text-sm.text-gray-600');
-            if (adminPriceLine) {
-                const parts = adminPriceLine.textContent.split(' • ');
-                const base = parts[0];
-                const pricePart = prezzo ? ` • Prezzo: <strong>${prezzo}</strong>` : '';
-                adminPriceLine.innerHTML = base + pricePart;
-            }
-        });
+        const adminPriceLine = card.querySelector('.text-sm.text-gray-600');
+        if (adminPriceLine) {
+          const parts = adminPriceLine.textContent.split(' • ');
+          const base = parts[0];
+          const pricePart = prezzo ? ` • Prezzo: <strong>${prezzo}</strong>` : '';
+          adminPriceLine.innerHTML = base + pricePart;
+        }
+      });
 
-        window.closeEditModal();
-        alert('Oggetto aggiornato!');
+      window.closeEditModal();
+      alert('Oggetto aggiornato!');
 
     } catch (e) {
-        console.error(e);
-        alert('Errore salvataggio');
+      console.error(e);
+      alert('Errore salvataggio');
     }
-};
+  };
 }
