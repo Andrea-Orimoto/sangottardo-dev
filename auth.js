@@ -17,14 +17,31 @@ if (saved) window.currentUser = JSON.parse(saved);
 
 function handleCredentialResponse(response) {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    window.currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
+    window.currentUser = {
+        name: payload.name,
+        email: payload.email,
+        picture: payload.picture
+    };
     localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
 
-    // Questo ora funziona perché hai firebase-auth-compat.js
-    const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-    firebase.auth().signInWithCredential(credential)
-        .then(() => console.log("Firebase Auth OK"))
-        .catch(err => console.error("Firebase Auth error:", err));
+    // FORZA FIREBASE AUTH SEMPRE (anche se l'utente è già loggato)
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                console.log("Firebase Auth già attivo:", user.email);
+            } else {
+                console.log("Firebase Auth non attivo — forzo con token");
+                const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+                firebase.auth().signInWithCredential(credential)
+                    .then((userCred) => {
+                        console.log("Firebase Auth SUCCESS:", userCred.user.email);
+                    })
+                    .catch((err) => {
+                        console.error("Firebase Auth FAILED:", err.message);
+                    });
+            }
+        });
+    }
 
     window.updateAuthUI?.();
     if (window.loadPreferiti) window.loadPreferiti();
@@ -125,3 +142,20 @@ window.onload = function () {
         setTimeout(() => clearInterval(interval), 3000);
     }
 };
+
+// FORZA FIREBASE AUTH SE L'UTENTE È LOGGATO MA FIREBASE NO
+setTimeout(() => {
+    if (window.currentUser && firebase?.auth && !firebase.auth().currentUser) {
+        console.log("Forzo Firebase Auth...");
+        google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed()) {
+                console.warn("Prompt bloccato — riprovo manualmente");
+                // Fallback: usa il token dalla sessione locale
+                const credential = firebase.auth.GoogleAuthProvider.credential(
+                    response.credential // usa l'ultimo response
+                );
+                firebase.auth().signInWithCredential(credential);
+            }
+        });
+    }
+}, 2000);
