@@ -68,20 +68,30 @@ if (!window.editModalInitialized) {
 
   window.currentEditingUUID = null;
 
-  window.openEditModal = function (uuid) {
+  window.openEditModal = async function (uuid) {
     if (!window.currentUser || !window.isAdmin(window.currentUser)) return;
 
     window.currentEditingUUID = uuid;
     const item = allItems.find(i => i.UUID === uuid);
-    const statusInfo = window.allStatus?.[uuid] || {};
 
     if (!item) return;
 
-    document.getElementById('editModalPhoto').src = 
+    // LEGGI SEMPRE I DATI FRESCHI DA FIREBASE (non da cache!)
+    let statusInfo = {};
+    try {
+      const snap = await db.ref('status/' + uuid).once('value');
+      statusInfo = snap.val() || {};
+    } catch (e) {
+      console.warn("Impossibile leggere status da Firebase:", e);
+    }
+
+    // Header
+    document.getElementById('editModalPhoto').src =
       item.Photos?.[0] ? `images/${item.Photos[0]}` : 'images/placeholder.jpg';
     document.getElementById('editModalTitle').textContent = item.Item;
     document.getElementById('editModalID').textContent = item['Serial No'] || '—';
 
+    // Campi — usa i dati FRESCHI
     document.getElementById('editPrice').value = statusInfo.prezzo || '';
     document.getElementById('editStatus').value = item.Status || '';
     document.getElementById('editBuyer').value = statusInfo.vendutoA || '';
@@ -129,12 +139,34 @@ if (!window.editModalInitialized) {
       const item = allItems.find(i => i.UUID === window.currentEditingUUID);
       if (item) item.Status = status || '';
 
+      // AGGIORNAMENTO IMMEDIATO NEL DOM — SELETTORI ESATTI
+      const card = document.querySelector(`[data-uuid="${window.currentEditingUUID}"]`);
+      if (card) {
+        // 1. Aggiorna il BADGE STATUS (sempre il secondo elemento del flex)
+        const statusBadge = card.querySelector('.flex.justify-between.items-center > div:last-child');
+        if (statusBadge) {
+          let badgeHtml = '';
+          if (status === 'Venduto') {
+            badgeHtml = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>';
+          } else if (status === 'Prenotato') {
+            badgeHtml = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Prenotato</span>';
+          } else {
+            badgeHtml = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
+          }
+          statusBadge.innerHTML = badgeHtml;
+        }
+
+        // 2. Aggiorna il PREZZO (sempre il primo elemento del flex)
+        const priceEl = card.querySelector('.flex.justify-between.items-center > p');
+        if (priceEl) {
+          const label = priceEl.textContent.split(':')[0] + ':';
+          priceEl.innerHTML = `<span class="text-sm font-medium text-indigo-600">${label} ${prezzo || '—'}</span>`;
+        }
+      }
+
       window.closeEditModal();
-
-      if (typeof loadAllFavorites === 'function') loadAllFavorites();
-      if (typeof renderGrid === 'function') renderGrid();
-
       alert('Oggetto aggiornato!');
+
     } catch (e) {
       console.error(e);
       alert('Errore salvataggio');
