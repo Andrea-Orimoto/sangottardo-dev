@@ -159,3 +159,44 @@ setTimeout(() => {
         });
     }
 }, 2000);
+
+// === BADGE AMBIENTE — solo su -dev ===
+// Funziona su index.html, admin.html e qualsiasi altra pagina
+(function () {
+    const isDev = window.location.hostname === 'andrea-orimoto.github.io' &&
+        window.location.pathname.includes('sangottardo-dev');
+
+    if (!isDev) return;
+
+    // Crea il badge solo se non esiste già
+    if (document.getElementById('env-badge')) return;
+
+    const badge = document.createElement('div');
+    badge.id = 'env-badge';
+    badge.textContent = 'DEV';
+    badge.style.cssText = `
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        background: #f59e0b;
+        color: white;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 9999;
+        text-transform: uppercase;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    `;
+
+    document.body.appendChild(badge);
+
+    // Piccola animazione di entrata
+    requestAnimationFrame(() => {
+        badge.style.opacity = '1';
+    });
+})();
