@@ -112,6 +112,27 @@ if (!window.editModalInitialized) {
     window.currentEditingUUID = null;
   };
 
+  // FUNZIONE TOAST — AGGIUNGILA UNA VOLTA SOLA IN edit-modal.js
+  function showToast(message, type = 'success') {
+    // Crea il toast se non esiste
+    let toast = document.getElementById('toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toast';
+      document.body.appendChild(toast);
+    }
+
+    toast.textContent = message;
+    toast.className = type; // rimuove success/error precedenti
+    toast.classList.add('show');
+
+    clearTimeout(toast.hideTimeout);
+    toast.hideTimeout = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
+  // SALVATAGGIO CON TOAST — VERSIONE FINALE
   window.saveObjectStatus = async function () {
     if (!window.currentEditingUUID) return;
 
@@ -139,10 +160,8 @@ if (!window.editModalInitialized) {
       const item = allItems.find(i => i.UUID === window.currentEditingUUID);
       if (item) item.Status = status || '';
 
-      // AGGIORNAMENTO UNIVERSALE — FUNZIONA SU INDEX E ADMIN
+      // AGGIORNAMENTO DOM (tutto come prima — funziona su index e admin)
       document.querySelectorAll(`[data-uuid="${window.currentEditingUUID}"]`).forEach(card => {
-
-        // === INDEX.HTML (griglia) ===
         const indexBadge = card.querySelector('.flex.justify-between.items-center > div:last-child');
         if (indexBadge) {
           let html = '';
@@ -158,7 +177,6 @@ if (!window.editModalInitialized) {
           indexPrice.innerHTML = `<span class="text-sm font-medium text-indigo-600">${label} ${prezzo || '—'}</span>`;
         }
 
-        // === ADMIN.HTML (entrambe le viste) ===
         const adminBadge = card.querySelector('.text-right');
         if (adminBadge) {
           let html = '';
@@ -191,11 +209,11 @@ if (!window.editModalInitialized) {
       });
 
       window.closeEditModal();
-      alert('Oggetto aggiornato!');
+      showToast('Oggetto aggiornato!', 'success');
 
     } catch (e) {
       console.error(e);
-      alert('Errore salvataggio');
+      showToast('Errore salvataggio', 'error');
     }
   };
 }

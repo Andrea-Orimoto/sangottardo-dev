@@ -196,13 +196,16 @@
 /* BADGE STATUS – identici a quelli di index.html */
 .badge-disponibile {
     display: inline-block;
-    padding: 0.25rem 0.75rem;     /* più piccolo */
-    font-size: 0.75rem;           /* testo più piccolo */
+    padding: 0.25rem 0.75rem;
+    /* più piccolo */
+    font-size: 0.75rem;
+    /* testo più piccolo */
     font-weight: 600;
     color: white;
-    background-color: #10b981;     /* emerald-500 come in index */
+    background-color: #10b981;
+    /* emerald-500 come in index */
     border-radius: 9999px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .badge-prenotato {
@@ -211,9 +214,10 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: white;
-    background-color: #f97316;     /* orange-500 */
+    background-color: #f97316;
+    /* orange-500 */
     border-radius: 9999px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .badge-venduto {
@@ -222,7 +226,41 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: white;
-    background-color: #ef4444;     /* red-500 */
+    background-color: #ef4444;
+    /* red-500 */
     border-radius: 9999px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Toast notification */
+#toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 300px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999;
+    text-align: center;
+}
+
+#toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+#toast.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+#toast.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
