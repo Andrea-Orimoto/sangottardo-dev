@@ -89,7 +89,6 @@ async function loadCSVAndStatus() {
       const snapshot = await db.ref('status').once('value');
       const statusData = snapshot.val() || {};
 
-      // ESPONIAMO I DATI PER TUTTO IL SITO
       window.allStatus = statusData;
 
       allItems.forEach(item => {
@@ -242,15 +241,6 @@ window.handleHeartClick = async function (uuid) {
   }
 };
 
-let isSavingPreferiti = false;
-let saveQueue = [];
-
-function updatePreferitiCount() {
-  const count = window.currentUser ? (window.preferitiData[window.currentUser.email] || []).length : 0;
-  const el = document.getElementById('preferitiCount');
-  if (el) el.textContent = count;
-}
-
 function renderPreferitiSidebar() {
   const container = document.getElementById('preferitiList');
   if (!container) return;
@@ -305,7 +295,7 @@ function renderPreferitiSidebar() {
   container.appendChild(fragment);
 }
 
-// PREZZO SOLO DA FIREBASE (UNICA MODIFICA!)
+// PREZZO SOLO DA FIREBASE
 function formatPrice(item) {
   const statusInfo = window.allStatus?.[item.UUID] || {};
   const prezzo = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
@@ -422,7 +412,6 @@ function renderGrid(loadMore = false) {
     </svg>
   </button>`;
 
-    // BOTTONE EDITING ADMIN (solo se admin)
     const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
       <button onclick="event.stopPropagation(); openEditModal('${item.UUID}')" 
               class="absolute top-2 left-2 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition z-10">
@@ -471,6 +460,8 @@ function renderGrid(loadMore = false) {
   document.getElementById('preferitiCount').textContent = count;
 }
 
+let currentSwiper = null;
+
 function openModal(item) {
   document.getElementById('modalTitle').textContent = item.Item;
   document.getElementById('modalDesc').innerHTML = `
@@ -491,8 +482,33 @@ function openModal(item) {
     wrapper.appendChild(slide);
   });
 
+  // Rimuovi vecchio cuore
   document.querySelector('.swiper button[data-heart]')?.remove();
 
+  // Distruggi vecchio Swiper
+  if (currentSwiper) {
+    currentSwiper.destroy(true, true);
+    currentSwiper = null;
+  }
+
+  // FORZA L'ALTEZZA DEL CONTAINER (QUESTA È LA CHIAVE)
+  const swiperContainer = document.querySelector('.mySwiper');
+  swiperContainer.style.height = '60vh';
+  swiperContainer.style.maxHeight = '500px';
+
+  // Nuovo Swiper
+  currentSwiper = new Swiper('.mySwiper', {
+    loop: false,
+    pagination: { el: '.swiper-pagination', clickable: true },
+    navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+    spaceBetween: 0,
+    slidesPerView: 1,
+    touchRatio: 1,
+    grabCursor: true,
+    initialSlide: 0
+  });
+
+  // Cuore nel modal
   const modalHeart = document.createElement('button');
   modalHeart.setAttribute('data-heart', 'true');
   modalHeart.className = 'absolute top-4 right-12 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg z-10';
@@ -501,7 +517,7 @@ function openModal(item) {
        viewBox="0 0 24 24" fill="currentColor">
     <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
   </svg>
-`;
+  `;
 
   modalHeart.onclick = async (e) => {
     e.stopPropagation();
@@ -519,19 +535,14 @@ function openModal(item) {
 
   document.getElementById('modal').classList.remove('hidden');
   document.getElementById('closeModal').onclick = closeModal;
-
-  new Swiper('.mySwiper', {
-    loop: false,
-    pagination: { el: '.swiper-pagination', clickable: true },
-    navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
-    spaceBetween: 0,
-    slidesPerView: 1,
-    touchRatio: 1,
-    grabCursor: true
-  });
 }
 
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
   document.querySelector('.swiper button[data-heart]')?.remove();
+  
+  if (currentSwiper) {
+    currentSwiper.destroy(true, true);
+    currentSwiper = null;
+  }
 }
