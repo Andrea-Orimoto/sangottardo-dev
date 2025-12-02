@@ -326,54 +326,91 @@ function filterItems() {
 
 function setupFilters() {
   const sel = document.getElementById('catFilter');
-  const totalItems = allItems.length;
+  const filtersContainer = document.querySelector('#filters');
 
-  sel.innerHTML = '';
-  const allOption = document.createElement('option');
-  allOption.value = '';
-  allOption.textContent = `All Categories (${totalItems})`;
-  sel.appendChild(allOption);
+  function updateCategoryCounts() {
+    const currentStatus = document.getElementById('statusFilter')?.value || '';
+    const filteredItems = filterItems(); // Usa il filtro status corrente
 
-  const locations = [...new Set(allItems.map(i => i.Location).filter(Boolean))].sort();
-  const locationCount = {};
-  allItems.forEach(item => {
-    const loc = item.Location || 'Uncategorized';
-    locationCount[loc] = (locationCount[loc] || 0) + 1;
+    sel.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = `All Categories (${filteredItems.length})`;
+    sel.appendChild(allOption);
+
+    const locationCount = {};
+    filteredItems.forEach(item => {
+      const loc = item.Location || 'Uncategorized';
+      locationCount[loc] = (locationCount[loc] || 0) + 1;
+    });
+
+    const locations = [...new Set(filteredItems.map(i => i.Location).filter(Boolean))].sort();
+    locations.forEach(loc => {
+      const opt = document.createElement('option');
+      opt.value = loc;
+      opt.textContent = `${loc} (${locationCount[loc]})`;
+      sel.appendChild(opt);
+    });
+
+    // Aggiungi "Uncategorized" se esiste
+    if (locationCount['Uncategorized']) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = `Uncategorized (${locationCount['Uncategorized']})`;
+      sel.appendChild(opt);
+    }
+  }
+
+  // Crea il dropdown Status (una volta sola)
+  let statusSel = document.getElementById('statusFilter');
+  if (!statusSel) {
+    statusSel = document.createElement('select');
+    statusSel.id = 'statusFilter';
+    statusSel.className = 'ml-2 p-2 border rounded';
+    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
+    filtersContainer.appendChild(statusSel);
+  }
+
+  // Aggiorna i conteggi all'avvio
+  updateCategoryCounts();
+
+  // Aggiorna quando cambia Status
+  statusSel.addEventListener('change', () => {
+    displayed = 0;
+    renderGrid();
+    updateCategoryCounts();
   });
 
-  locations.forEach(loc => {
-    const opt = document.createElement('option');
-    opt.value = loc;
-    opt.textContent = `${loc} (${locationCount[loc]})`;
-    sel.appendChild(opt);
-  });
-
-  const statusSel = document.createElement('select');
-  statusSel.id = 'statusFilter';
-  statusSel.className = 'ml-2 p-2 border rounded';
-  statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
-  statusSel.addEventListener('change', () => { displayed = 0; renderGrid(); });
-  document.querySelector('#filters').appendChild(statusSel);
-
+  // Aggiorna anche quando cambia ricerca
   let timeout;
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => { displayed = 0; renderGrid(); }, 300);
+    timeout = setTimeout(() => {
+      displayed = 0;
+      renderGrid();
+      updateCategoryCounts();
+    }, 300);
   });
 
+  // Aggiorna quando cambia categoria
   sel.addEventListener('change', () => {
-    displayed = 0; renderGrid();
+    displayed = 0;
+    renderGrid();
     const url = new URL(window.location);
     sel.value ? url.searchParams.set('cat', sel.value) : url.searchParams.delete('cat');
     window.history.replaceState({}, '', url);
   });
 
+  // Ripristina filtro da URL
   const urlParams = new URLSearchParams(window.location.search);
   const urlCat = urlParams.get('cat');
   if (urlCat) {
     setTimeout(() => {
       const option = sel.querySelector(`option[value="${urlCat}"]`);
-      if (option) { sel.value = urlCat; sel.dispatchEvent(new Event('change')); }
+      if (option) {
+        sel.value = urlCat;
+        sel.dispatchEvent(new Event('change'));
+      }
     }, 100);
   }
 }
