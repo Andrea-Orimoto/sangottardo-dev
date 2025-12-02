@@ -326,11 +326,20 @@ function filterItems() {
 
 function setupFilters() {
   const sel = document.getElementById('catFilter');
-  const filtersContainer = document.querySelector('#filters');
+
+  // Crea dropdown Status UNA VOLTA SOLA (se non esiste)
+  let statusSel = document.getElementById('statusFilter');
+  if (!statusSel) {
+    statusSel = document.createElement('select');
+    statusSel.id = 'statusFilter';
+    statusSel.className = 'ml-2 p-2 border rounded';
+    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
+    document.querySelector('#filters').appendChild(statusSel);
+  }
 
   function updateCategoryCounts() {
-    const currentStatus = document.getElementById('statusFilter')?.value || '';
-    const filteredItems = filterItems(); // Usa il filtro status corrente
+    const currentStatus = statusSel.value;
+    const filteredItems = filterItems(); // Usa il filtro Status corrente
 
     sel.innerHTML = '';
     const allOption = document.createElement('option');
@@ -351,48 +360,30 @@ function setupFilters() {
       opt.textContent = `${loc} (${locationCount[loc]})`;
       sel.appendChild(opt);
     });
-
-    // Aggiungi "Uncategorized" se esiste
-    if (locationCount['Uncategorized']) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = `Uncategorized (${locationCount['Uncategorized']})`;
-      sel.appendChild(opt);
-    }
   }
 
-  // Crea il dropdown Status (una volta sola)
-  let statusSel = document.getElementById('statusFilter');
-  if (!statusSel) {
-    statusSel = document.createElement('select');
-    statusSel.id = 'statusFilter';
-    statusSel.className = 'ml-2 p-2 border rounded';
-    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
-    filtersContainer.appendChild(statusSel);
-  }
-
-  // Aggiorna i conteggi all'avvio
+  // Aggiorna alla prima apertura
   updateCategoryCounts();
 
-  // Aggiorna quando cambia Status
+  // Listener per Status — ricalcola categorie
   statusSel.addEventListener('change', () => {
     displayed = 0;
     renderGrid();
     updateCategoryCounts();
   });
 
-  // Aggiorna anche quando cambia ricerca
+  // Listener per ricerca
   let timeout;
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      displayed = 0;
-      renderGrid();
-      updateCategoryCounts();
+    timeout = setTimeout(() => { 
+      displayed = 0; 
+      renderGrid(); 
+      updateCategoryCounts(); 
     }, 300);
   });
 
-  // Aggiorna quando cambia categoria
+  // Listener per categoria
   sel.addEventListener('change', () => {
     displayed = 0;
     renderGrid();
@@ -401,15 +392,15 @@ function setupFilters() {
     window.history.replaceState({}, '', url);
   });
 
-  // Ripristina filtro da URL
+  // Ripristina da URL
   const urlParams = new URLSearchParams(window.location.search);
   const urlCat = urlParams.get('cat');
   if (urlCat) {
     setTimeout(() => {
       const option = sel.querySelector(`option[value="${urlCat}"]`);
-      if (option) {
-        sel.value = urlCat;
-        sel.dispatchEvent(new Event('change'));
+      if (option) { 
+        sel.value = urlCat; 
+        sel.dispatchEvent(new Event('change')); 
       }
     }, 100);
   }
