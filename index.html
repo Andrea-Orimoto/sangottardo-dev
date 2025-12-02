@@ -147,6 +147,37 @@
     </script>
     <script src="edit-modal.js"></script>
     <div id="toast"></div>
+    <!-- ... tutto il tuo HTML ... -->
+
+    <script>
+        const isDev = window.location.hostname === 'andrea-orimoto.github.io' && window.location.pathname.includes('sangottardo-dev');
+        //const isDev = window.location.hostname === 'http://127.0.0.1:5500/';
+        if (!isDev || !document.getElementById('env-badge')) {
+            const badge = document.createElement('div');
+            badge.id = 'env-badge';
+            badge.textContent = 'DEV';
+            badge.style.cssText = `
+                position: fixed;
+                top: 16px;
+                left: 16px;
+                background: #f59e0b;
+                color: white;
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+                padding: 6px 10px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                text-transform: uppercase;
+                pointer-events: none;
+                opacity: 1;
+            `;
+            document.body.appendChild(badge);
+        }
+
+    </script>
+
 </body>
 
 </html>
