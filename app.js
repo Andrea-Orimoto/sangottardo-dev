@@ -414,6 +414,11 @@ function setupFilters() {
       sel.value = '';
       statusSel.value = '';
 
+      // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+      // RESET DELLA SEARCH BOX
+      document.getElementById('search').value = '';
+      // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+
       // Resetta griglia
       displayed = 0;
       renderGrid();
@@ -440,6 +445,27 @@ function renderGrid(loadMore = false) {
   const filtered = filterItems();
   const start = displayed;
   const end = Math.min(start + PAGE_SIZE, filtered.length);
+
+  // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+  // MESSAGGIO "NESSUN RISULTATO" PERSONALIZZATO
+  if (filtered.length === 0) {
+    const cat = document.getElementById('catFilter').value || 'tutte le categorie';
+    const status = document.getElementById('statusFilter')?.value || 'tutti gli stati';
+    const statusText = status === 'Disponibile' ? 'disponibili' :
+      status === 'Venduto' ? 'venduti' : status;
+
+    const message = document.createElement('div');
+    message.className = 'col-span-full text-center py-12 text-gray-500';
+    message.innerHTML = `
+      <p class="text-lg">Nessun risultato per</p>
+      <p class="text-xl font-medium mt-2">${cat} — ${statusText}</p>
+      <p class="text-sm mt-4">Prova a cambiare i filtri o la ricerca</p>
+    `;
+    container.appendChild(message);
+    document.getElementById('loadMore').classList.add('hidden');
+    renderPreferitiSidebar();
+    return;
+  }
 
   for (let i = start; i < end; i++) {
     const item = filtered[i];
