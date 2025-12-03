@@ -385,7 +385,7 @@
         <script>
         const isDev = window.location.hostname === 'andrea-orimoto.github.io' && window.location.pathname.includes('sangottardo-dev');
         //const isDev = window.location.hostname === 'http://127.0.0.1:5500/';
-        if (!isDev || !document.getElementById('env-badge')) {
+        if (isDev && !document.getElementById('env-badge')) {
             const badge = document.createElement('div');
             badge.id = 'env-badge';
             badge.textContent = 'DEV';
