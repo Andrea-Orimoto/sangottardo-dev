@@ -376,10 +376,10 @@ function setupFilters() {
   let timeout;
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => { 
-      displayed = 0; 
-      renderGrid(); 
-      updateCategoryCounts(); 
+    timeout = setTimeout(() => {
+      displayed = 0;
+      renderGrid();
+      updateCategoryCounts();
     }, 300);
   });
 
@@ -398,11 +398,34 @@ function setupFilters() {
   if (urlCat) {
     setTimeout(() => {
       const option = sel.querySelector(`option[value="${urlCat}"]`);
-      if (option) { 
-        sel.value = urlCat; 
-        sel.dispatchEvent(new Event('change')); 
+      if (option) {
+        sel.value = urlCat;
+        sel.dispatchEvent(new Event('change'));
       }
     }, 100);
+  }
+
+  // BOTTONE CLEAR FILTERS
+  const clearBtn = document.getElementById('clearFilters');
+  clearBtn.parentNode.insertBefore(statusSel, clearBtn);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      // Resetta dropdown
+      sel.value = '';
+      statusSel.value = '';
+
+      // Resetta griglia
+      displayed = 0;
+      renderGrid();
+
+      // Aggiorna i conteggi delle categorie
+      updateCategoryCounts();
+
+      // Pulisci l'URL
+      const url = new URL(window.location);
+      url.searchParams.delete('cat');
+      window.history.replaceState({}, '', url);
+    });
   }
 }
 
@@ -568,7 +591,7 @@ function openModal(item) {
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
   document.querySelector('.swiper button[data-heart]')?.remove();
-  
+
   if (currentSwiper) {
     currentSwiper.destroy(true, true);
     currentSwiper = null;
