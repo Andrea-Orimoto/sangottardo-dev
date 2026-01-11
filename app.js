@@ -17,6 +17,31 @@ let allItems = [], displayed = 0;
 window.statusData = {};
 window.preferitiData = {};        // ← NEW: global favorites per user
 
+// --------------------- PERMALINK SUPPORT ---------------------
+function updateItemPermalink(uuid) {
+  const url = new URL(window.location);
+  if (uuid) {
+    url.searchParams.set('item', uuid);
+  } else {
+    url.searchParams.delete('item');
+  }
+  window.history.pushState({ item: uuid }, '', url);
+}
+
+function restoreFromPermalink() {
+  const params = new URLSearchParams(window.location.search);
+  const uuid = params.get('item');
+  if (uuid && allItems.length > 0) {
+    const item = allItems.find(i => i.UUID === uuid);
+    if (item) {
+      openModal(item);
+    } else {
+      console.warn('Permalink item not found:', uuid);
+    }
+  }
+}
+// --------------------- END PERMALINK SUPPORT ---------------------
+
 async function init() {
   try {
     await loadCSVAndStatus();
@@ -65,6 +90,13 @@ async function init() {
     sidebar.classList.add('-translate-x-full');
     e.target.classList.add('hidden');
   }, { passive: false });
+
+    // Restore permalink on initial load + handle browser back/forward
+  restoreFromPermalink();
+
+  window.addEventListener('popstate', () => {
+    restoreFromPermalink();
+  });
 }
 
 async function loadCSVAndStatus() {
@@ -540,6 +572,9 @@ function renderGrid(loadMore = false) {
 let currentSwiper = null;
 
 function openModal(item) {
+  // ← Added for permalink
+  updateItemPermalink(item.UUID);
+
   document.getElementById('modalTitle').textContent = item.Item;
   document.getElementById('modalDesc').innerHTML = `
     <strong>ID:</strong> ${item['Serial No'] || '—'}<br>
@@ -622,4 +657,7 @@ function closeModal() {
     currentSwiper.destroy(true, true);
     currentSwiper = null;
   }
+
+  // ← Added for permalink
+  updateItemPermalink(null);  // removes ?item=...
 }
