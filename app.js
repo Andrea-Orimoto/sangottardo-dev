@@ -97,6 +97,21 @@ async function init() {
   window.addEventListener('popstate', () => {
     restoreFromPermalink();
   });
+
+    // Close modal on Esc key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('modal').classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  // Close modal when clicking outside the content (on overlay)
+  document.getElementById('modal').addEventListener('click', (e) => {
+    // If the click is directly on the modal overlay (not on child elements like the dialog box)
+    if (e.target === document.getElementById('modal')) {
+      closeModal();
+    }
+  });
 }
 
 async function loadCSVAndStatus() {
@@ -646,11 +661,18 @@ function openModal(item) {
   document.querySelector('.swiper').insertAdjacentElement('afterbegin', modalHeart);
 
   document.getElementById('modal').classList.remove('hidden');
+    // Prevent background scroll while modal is open
+  document.body.style.overflow = 'hidden';
+
+  // Focus the modal for better keyboard accessibility
+  document.getElementById('modal').focus();
   document.getElementById('closeModal').onclick = closeModal;
 }
 
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
+    // Restore normal scrolling
+  document.body.style.overflow = '';
   document.querySelector('.swiper button[data-heart]')?.remove();
 
   if (currentSwiper) {
