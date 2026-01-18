@@ -642,7 +642,7 @@ function openModal(item) {
     // ── ZOOM ACTIVATION ──
     zoom: {
       maxRatio: 4,           // how much you can zoom (4× is usually plenty for photos)
-      limitToOriginalSize: true,   // ← very recommended for archival photos
+      limitToOriginalSize: false,   // ← very recommended for archival photos
       minRatio: 1,
       toggle: true,          // double-tap toggles zoom (very natural)
       panOnMouseMove: true   // nice on desktop – pan while zoomed
