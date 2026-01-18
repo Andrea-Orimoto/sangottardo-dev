@@ -91,14 +91,14 @@ async function init() {
     e.target.classList.add('hidden');
   }, { passive: false });
 
-    // Restore permalink on initial load + handle browser back/forward
+  // Restore permalink on initial load + handle browser back/forward
   restoreFromPermalink();
 
   window.addEventListener('popstate', () => {
     restoreFromPermalink();
   });
 
-    // Close modal on Esc key
+  // Close modal on Esc key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !document.getElementById('modal').classList.contains('hidden')) {
       closeModal();
@@ -605,8 +605,13 @@ function openModal(item) {
   item.Photos.forEach((src, idx) => {
     const slide = document.createElement('div');
     slide.className = 'swiper-slide flex items-center justify-center bg-gray-100';
-    slide.innerHTML = `<img src="images/${src}" alt="${item.Item} - ${idx + 1}" class="max-w-full max-h-full object-contain" onerror="this.src='images/placeholder.jpg'">`;
-    wrapper.appendChild(slide);
+    slide.innerHTML = `
+  <div class="swiper-zoom-container">
+    <img src="images/${src}" alt="${item.Item} - ${idx + 1}" 
+         class="max-w-full max-h-full object-contain" 
+         onerror="this.src='images/placeholder.jpg'">
+  </div>
+`; wrapper.appendChild(slide);
   });
 
   // Rimuovi vecchio cuore
@@ -632,7 +637,20 @@ function openModal(item) {
     slidesPerView: 1,
     touchRatio: 1,
     grabCursor: true,
-    initialSlide: 0
+    initialSlide: 0,
+
+    // ── ZOOM ACTIVATION ──
+    zoom: {
+      maxRatio: 4,           // how much you can zoom (4× is usually plenty for photos)
+      limitToOriginalSize: true,   // ← very recommended for archival photos
+      minRatio: 1,
+      toggle: true,          // double-tap toggles zoom (very natural)
+      panOnMouseMove: true   // nice on desktop – pan while zoomed
+    }
+  });
+
+  currentSwiper.on('slideChange', () => {
+    currentSwiper.zoom.out();
   });
 
   // Cuore nel modal
@@ -661,7 +679,7 @@ function openModal(item) {
   document.querySelector('.swiper').insertAdjacentElement('afterbegin', modalHeart);
 
   document.getElementById('modal').classList.remove('hidden');
-    // Prevent background scroll while modal is open
+  // Prevent background scroll while modal is open
   document.body.style.overflow = 'hidden';
 
   // Focus the modal for better keyboard accessibility
@@ -671,7 +689,7 @@ function openModal(item) {
 
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
-    // Restore normal scrolling
+  // Restore normal scrolling
   document.body.style.overflow = '';
   document.querySelector('.swiper button[data-heart]')?.remove();
 
