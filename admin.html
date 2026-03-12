@@ -169,6 +169,8 @@
         // VISTA PER UTENTE — invariata
         function renderByUser(data) {
             const container = document.getElementById('users-list');
+            container.innerHTML = ''; // clear previous content
+
             const grouped = {};
             data.forEach(d => {
                 if (!grouped[d.email]) grouped[d.email] = [];
@@ -188,9 +190,10 @@
                         const statusInfo = window.allStatus?.[d.id] || {};
                         const currentStatus = item.Status || 'Disponibile';
 
-                        const prezzoVendita = statusInfo.prezzo && statusInfo.prezzo.trim() !== '' && statusInfo.prezzo !== '?'
-                            ? statusInfo.prezzo
-                            : null;
+                        const prezzoVendita = statusInfo.prezzo &&
+                            statusInfo.prezzo.trim() !== '' &&
+                            statusInfo.prezzo !== '?'
+                            ? statusInfo.prezzo : null;
 
                         let badge = '';
                         if (currentStatus === 'Venduto') {
@@ -211,21 +214,18 @@
                         }
 
                         const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
-                            <button onclick="event.stopPropagation(); openEditModal('${d.id}')"
-                                    class="absolute top-3 left-3 bg-white/85 hover:bg-white/95 backdrop-blur-sm rounded-full p-3 shadow-xl transition-all z-20 border-2 border-white">
-                                <svg class="w-6 h-6 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                </svg>
-                            </button>` : '';
+                    <button onclick="event.stopPropagation(); openEditModal('${d.id}')"
+                            class="absolute top-3 left-3 bg-white/85 hover:bg-white/95 backdrop-blur-sm rounded-full p-3 shadow-xl transition-all z-20 border-2 border-white">
+                        <svg class="w-6 h-6 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </button>` : '';
 
                         const addedDate = d.added
                             ? new Date(d.added).toLocaleDateString('it-IT', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
+                                day: '2-digit', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
                             }).replace(',', ' alle')
                             : 'Data non disponibile';
 
@@ -256,14 +256,34 @@
                 `;
                     }).join('');
 
+                // ── Changed part: accordion structure ───────────────────────────────
                 const card = document.createElement('div');
-                card.className = 'bg-white rounded-2xl shadow-lg p-8';
+                card.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+
                 card.innerHTML = `
-            <h3 class="font-bold text-2xl mb-6 text-indigo-700">${email} 
-                <span class="text-base font-normal text-gray-500">(${grouped[email].length})</span>
-            </h3>
-            <div class="space-y-4">${items}</div>
+            <!-- Header (always visible) -->
+            <div class="accordion-header flex items-center justify-between px-8 py-5 cursor-pointer bg-gradient-to-r from-indigo-50 to-white hover:bg-indigo-100 transition-colors"
+                 onclick="this.parentElement.querySelector('.accordion-content').classList.toggle('hidden'); 
+                          this.querySelector('svg').classList.toggle('rotate-180')">
+                <div class="flex items-center gap-4">
+                    <h3 class="font-bold text-2xl text-indigo-700">
+                        ${email}
+                        <span class="text-base font-normal text-gray-600 ml-2">(${grouped[email].length})</span>
+                    </h3>
+                </div>
+                <svg class="w-6 h-6 text-indigo-600 transition-transform duration-300" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+
+            <!-- Content (collapsed by default) -->
+            <div class="accordion-content hidden px-8 pb-6 pt-2 border-t">
+                <div class="space-y-4">${items}</div>
+            </div>
         `;
+
                 container.appendChild(card);
             });
         }
@@ -382,7 +402,7 @@
     <script src="edit-modal.js"></script>
     <div id="toast"></div>
 
-        <script>
+    <script>
         const isDev = window.location.hostname === 'andrea-orimoto.github.io' && window.location.pathname.includes('sangottardo-dev');
         //const isDev = window.location.hostname === 'http://127.0.0.1:5500/';
         if (isDev && !document.getElementById('env-badge')) {
