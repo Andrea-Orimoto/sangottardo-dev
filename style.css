@@ -264,3 +264,11 @@
 #toast.error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
 }
+
+.badge-venduto,
+.badge-prenotato,
+.badge-disponibile {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
