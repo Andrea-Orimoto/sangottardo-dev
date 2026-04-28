@@ -166,15 +166,20 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
-        // VISTA PER UTENTE — invariata
+        // VISTA PER UTENTE
         function renderByUser(data) {
             const container = document.getElementById('users-list');
             container.innerHTML = ''; // clear previous content
 
             const grouped = {};
+            const favoritesByItem = {};
+
             data.forEach(d => {
                 if (!grouped[d.email]) grouped[d.email] = [];
                 grouped[d.email].push(d);
+
+                if (!favoritesByItem[d.id]) favoritesByItem[d.id] = [];
+                favoritesByItem[d.id].push({ email: d.email, added: d.added });
             });
 
             Object.keys(grouped).sort().forEach(email => {
@@ -247,6 +252,20 @@
                             <div class="text-xs text-gray-500 mt-1">
                                 Aggiunto: ${addedDate}
                             </div>
+                            ${(() => {
+                                const otherUsers = (favoritesByItem[d.id] || [])
+                                    .filter(u => u.email !== email)
+                                    .sort((a, b) => new Date(a.added || 0) - new Date(b.added || 0));
+
+                                if (otherUsers.length === 0) return '';
+
+                                return `
+                                    <div class="text-xs text-gray-600 mt-2">
+                                        <span class="font-semibold">Aggiunto anche da:</span>
+                                        ${otherUsers.map(u => u.email).join(', ')}
+                                    </div>
+                                `;
+                            })()}
                         </div>
 
                         <div class="text-right">
