@@ -128,6 +128,31 @@
             document.getElementById(`view-${mode}`).classList.remove('hidden');
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+
+        function renderSoldDetails(statusInfo) {
+            const soldTo = statusInfo?.vendutoA || '';
+            const soldDate = statusInfo?.data || '';
+
+            if (!soldTo && !soldDate) return '';
+
+            return `
+                <div class="text-xs text-gray-600 mt-1 leading-tight">
+                    ${soldTo ? `a <strong>${escapeHtml(soldTo)}</strong>` : ''}
+                    ${soldTo && soldDate ? '<br>' : ''}
+                    ${soldDate ? `il ${new Date(soldDate).toLocaleDateString('it-IT')}` : ''}
+                </div>
+            `;
+        }
+
         async function loadAllFavorites() {
             document.getElementById('loading').classList.remove('hidden');
             document.getElementById('users-list').innerHTML = '';
@@ -205,12 +230,7 @@
                             badge = `
                         <div class="text-right">
                             <span class="badge-venduto">VENDUTO</span>
-                            ${statusInfo.vendutoA && statusInfo.data ? `
-                                <div class="text-xs text-gray-600 mt-1 leading-tight">
-                                    a <strong>${statusInfo.vendutoA}</strong><br>
-                                    il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
-                                </div>
-                            ` : ''}
+                            ${renderSoldDetails(statusInfo)}
                         </div>`;
                         } else if (currentStatus === 'Prenotato') {
                             badge = `<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>`;
@@ -340,12 +360,7 @@
                     badge = `
                         <div class="text-right">
                             <span class="badge-venduto">VENDUTO</span>
-                            ${statusInfo.vendutoA && statusInfo.data ? `
-                                <div class="text-xs text-gray-600 mt-1 leading-tight">
-                                    a <strong>${statusInfo.vendutoA}</strong><br>
-                                    il ${new Date(statusInfo.data).toLocaleDateString('it-IT')}
-                                </div>
-                            ` : ''}
+                            ${renderSoldDetails(statusInfo)}
                         </div>`;
                 } else if (currentStatus === 'Prenotato') {
                     badge = `<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>`;
