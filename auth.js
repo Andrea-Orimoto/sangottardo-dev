@@ -44,7 +44,12 @@ function handleCredentialResponse(response) {
     }
 
     window.updateAuthUI?.();
-    if (window.loadPreferiti) window.loadPreferiti();
+    if (window.reloadStatusForCurrentUser) {
+        Promise.resolve(window.reloadStatusForCurrentUser())
+            .finally(() => window.loadPreferiti?.());
+    } else if (window.loadPreferiti) {
+        window.loadPreferiti();
+    }
 }
 
 window.logout = function () {

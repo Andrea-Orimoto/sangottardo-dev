@@ -15,6 +15,36 @@ document.addEventListener('DOMContentLoaded', () => {
 const PAGE_SIZE = 12;
 let allItems = [], displayed = 0;
 window.statusData = {};
+window.allStatus = {};
+window.adminStatusDetails = {};
+
+function isCurrentAdmin() {
+  return !!(window.currentUser && window.isAdmin?.(window.currentUser));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+function formatSoldDate(date) {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('it-IT');
+}
+
+function ensureEditModalLoaded() {
+  if (!isCurrentAdmin() || window.editModalInitialized || document.querySelector('script[data-admin-edit-modal]')) return;
+
+  const script = document.createElement('script');
+  script.src = 'edit-modal.js';
+  script.dataset.adminEditModal = 'true';
+  document.body.appendChild(script);
+}
 window.preferitiData = {};        // ← NEW: global favorites per user
 
 // --------------------- PERMALINK SUPPORT ---------------------
@@ -130,31 +160,84 @@ async function loadCSVAndStatus() {
     });
 
     allItems = Array.from(map.values());
-
-    // CARICA STATUS DA FIREBASE + ESPONE DATI
-    try {
-      const snapshot = await db.ref('status').once('value');
-      const statusData = snapshot.val() || {};
-
-      window.allStatus = statusData;
-
-      allItems.forEach(item => {
-        const fbEntry = statusData[item.UUID];
-        if (fbEntry && fbEntry.stato) {
-          item.Status = fbEntry.stato;
-        } else {
-          item.Status = '';
-        }
-      });
-      console.log('Status caricati da Firebase:', Object.keys(statusData).length);
-    } catch (e) {
-      console.warn('Impossibile caricare status da Firebase (normale se offline)', e);
-    }
+    await loadStatusForCurrentUser();
 
   } catch (e) {
     console.error("Caricamento fallito:", e);
     allItems = [];
   }
+}
+
+async function loadStatusForCurrentUser() {
+  try {
+    window.allStatus = {};
+    window.adminStatusDetails = {};
+
+    if (isCurrentAdmin()) {
+      const snapshot = await db.ref('status').once('value');
+      const statusData = snapshot.val() || {};
+
+      Object.entries(statusData).forEach(([uuid, entry]) => {
+        window.allStatus[uuid] = {
+          stato: entry?.stato || '',
+          prezzo: entry?.prezzo || ''
+        };
+
+        if (entry?.vendutoA || entry?.data) {
+          window.adminStatusDetails[uuid] = {
+            vendutoA: entry.vendutoA || '',
+            data: entry.data || ''
+          };
+        }
+      });
+    } else {
+      await Promise.all(allItems.map(async item => {
+        const [statusSnapshot, priceSnapshot] = await Promise.all([
+          db.ref(`status/${item.UUID}/stato`).once('value'),
+          db.ref(`status/${item.UUID}/prezzo`).once('value')
+        ]);
+
+        const stato = statusSnapshot.val() || '';
+        const prezzo = priceSnapshot.val() || '';
+        if (stato || prezzo) {
+          window.allStatus[item.UUID] = { stato, prezzo };
+        }
+      }));
+    }
+
+    allItems.forEach(item => {
+      item.Status = window.allStatus[item.UUID]?.stato || '';
+    });
+
+    ensureEditModalLoaded();
+    console.log('Status caricati da Firebase:', Object.keys(window.allStatus).length);
+  } catch (e) {
+    console.warn('Impossibile caricare status da Firebase (normale se offline)', e);
+  }
+}
+
+window.reloadStatusForCurrentUser = async function () {
+  if (allItems.length === 0) return;
+  await loadStatusForCurrentUser();
+  displayed = 0;
+  renderGrid();
+};
+
+function getAdminSoldDetailsHtml(item) {
+  if (!isCurrentAdmin() || (item.Status || '').trim() !== 'Venduto') return '';
+
+  const details = window.adminStatusDetails?.[item.UUID] || {};
+  const soldTo = details.vendutoA;
+  const soldDate = details.data;
+
+  if (!soldTo && !soldDate) return '';
+
+  return `
+    <div class="text-xs text-gray-600 leading-tight mt-1">
+      ${soldTo ? `a <strong>${escapeHtml(soldTo)}</strong>` : ''}
+      ${soldTo && soldDate ? '<br>' : ''}
+      ${soldDate ? `il ${formatSoldDate(soldDate)}` : ''}
+    </div>`;
 }
 
 // Firebase config
@@ -536,7 +619,7 @@ function renderGrid(loadMore = false) {
     </svg>
   </button>`;
 
-    const editButton = window.currentUser && window.isAdmin(window.currentUser) ? `
+    const editButton = isCurrentAdmin() ? `
       <button onclick="event.stopPropagation(); openEditModal('${item.UUID}')" 
               class="absolute top-2 left-2 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition z-10">
         <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,7 +629,7 @@ function renderGrid(loadMore = false) {
       </button>` : '';
 
     const statusHtml = isSold
-      ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>'
+      ? `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`
       : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
 
     div.innerHTML = `
@@ -556,15 +639,15 @@ function renderGrid(loadMore = false) {
         ${heartIcon}
         ${editButton}
       </div>
-      <div class="p-3 h-32 flex flex-col justify-between bg-white">
+      <div class="p-3 flex flex-col justify-between bg-white" style="min-height: 8rem;">
         <div>
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
           <p class="text-xs text-gray-600 mt-1">Category: ${item.Location || '—'}</p>
           <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
         </div>
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-start gap-3">
           <p class="text-sm font-medium text-indigo-600">Prezzo: ${formatPrice(item)}</p>
-          <div class="mt-1">${statusHtml}</div>
+          <div class="mt-1 text-right">${statusHtml}</div>
         </div>
       </div>
     `;

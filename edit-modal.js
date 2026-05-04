@@ -132,6 +132,16 @@ if (!window.editModalInitialized) {
     }, 3000);
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
+  }
+
   // SALVATAGGIO CON TOAST — VERSIONE FINALE
   window.saveObjectStatus = async function () {
     if (!window.currentEditingUUID) return;
@@ -159,13 +169,39 @@ if (!window.editModalInitialized) {
 
       const item = allItems.find(i => i.UUID === window.currentEditingUUID);
       if (item) item.Status = status || '';
+      if (window.allStatus) {
+        window.allStatus[window.currentEditingUUID] = {
+          stato: status || '',
+          prezzo: prezzo || ''
+        };
+      }
+      if (window.adminStatusDetails) {
+        if (status === 'Venduto' && (buyer || date)) {
+          window.adminStatusDetails[window.currentEditingUUID] = {
+            vendutoA: buyer || '',
+            data: date || ''
+          };
+        } else {
+          delete window.adminStatusDetails[window.currentEditingUUID];
+        }
+      }
 
       // AGGIORNAMENTO DOM (tutto come prima — funziona su index e admin)
       document.querySelectorAll(`[data-uuid="${window.currentEditingUUID}"]`).forEach(card => {
-        const indexBadge = card.querySelector('.flex.justify-between.items-center > div:last-child');
+        const indexBadge = card.querySelector('.flex.justify-between > div:last-child');
         if (indexBadge) {
           let html = '';
-          if (status === 'Venduto') html = '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>';
+          if (status === 'Venduto') {
+            html = `
+              <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>
+              ${buyer || date ? `
+                <div class="text-xs text-gray-600 leading-tight mt-1">
+                  ${buyer ? `a <strong>${escapeHtml(buyer)}</strong>` : ''}
+                  ${buyer && date ? '<br>' : ''}
+                  ${date ? `il ${new Date(date).toLocaleDateString('it-IT')}` : ''}
+                </div>
+              ` : ''}`;
+          }
           else if (status === 'Prenotato') html = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Prenotato</span>';
           else html = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
           indexBadge.innerHTML = html;
