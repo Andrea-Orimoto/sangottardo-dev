@@ -12,11 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 });
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 let allItems = [], displayed = 0;
 window.statusData = {};
 window.allStatus = {};
 window.adminStatusDetails = {};
+let selectedTags = new Set();
+let tagCatalog = [];
+let itemTags = {};
+
+const FILTER_STORAGE_KEY = 'sanGottardoFilters';
 
 function isCurrentAdmin() {
   return !!(window.currentUser && window.isAdmin?.(window.currentUser));
@@ -30,6 +35,84 @@ function escapeHtml(value) {
     '"': '&quot;',
     "'": '&#39;'
   }[char]));
+}
+
+function normalizeTag(value) {
+  return String(value || '').trim().replace(/^#/, '').replace(/[\s.#$\/\[\]]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
+}
+
+function normalizeTags(tags) {
+  return [...new Set((Array.isArray(tags) ? tags : []).map(normalizeTag).filter(Boolean))].sort();
+}
+
+function displayTag(tag) {
+  return String(tag || '').replace(/-/g, ' ');
+}
+
+function categoryTag(item) {
+  return normalizeTag(item.Location || '');
+}
+
+function loadFilterState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '{}');
+    selectedTags = new Set(normalizeTags(saved.tags || []).slice(0, 1));
+  } catch {
+    selectedTags = new Set();
+  }
+}
+
+function saveFilterState() {
+  localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({ tags: [...selectedTags] }));
+}
+
+function getItemTags(item) {
+  return normalizeTags(item?.Tags || []);
+}
+
+async function loadTagsForItems() {
+  let firebaseTags = {};
+  let firebaseCatalog = {};
+
+  try {
+    if (isCurrentAdmin()) {
+      const statusSnapshot = await db.ref('status').once('value');
+      const statusData = statusSnapshot.val() || {};
+      firebaseCatalog = statusData.__tagCatalog || {};
+      Object.entries(statusData).forEach(([uuid, entry]) => {
+        if (uuid !== '__tagCatalog' && Array.isArray(entry?.tags)) {
+          firebaseTags[uuid] = entry.tags;
+        }
+      });
+    } else {
+      const catalogSnapshot = await db.ref('status/__tagCatalog').once('value').catch(() => null);
+      firebaseCatalog = catalogSnapshot?.val?.() || {};
+      const tagEntries = await Promise.all(allItems.map(async item => {
+        try {
+          const snapshot = await db.ref(`status/${item.UUID}/tags`).once('value');
+          return [item.UUID, snapshot.val() || []];
+        } catch {
+          return [item.UUID, []];
+        }
+      }));
+      firebaseTags = Object.fromEntries(tagEntries.filter(([, tags]) => Array.isArray(tags) && tags.length));
+    }
+  } catch (err) {
+    console.warn('Firebase tags unavailable, using category fallback', err);
+  }
+
+  itemTags = firebaseTags || {};
+  allItems.forEach(item => {
+    const savedTags = normalizeTags(itemTags[item.UUID] || []);
+    const fallbackTags = savedTags.length ? savedTags : normalizeTags([categoryTag(item)]);
+    item.Tags = fallbackTags;
+  });
+
+  tagCatalog = normalizeTags([
+    ...Object.keys(firebaseCatalog || {}),
+    ...Object.values(itemTags || {}).flatMap(tags => Array.isArray(tags) ? tags : []),
+    ...allItems.flatMap(item => getItemTags(item))
+  ]);
 }
 
 function formatSoldDate(date) {
@@ -74,6 +157,7 @@ function restoreFromPermalink() {
 
 async function init() {
   try {
+    loadFilterState();
     await loadCSVAndStatus();
     console.log("INIT: Items loaded →", allItems.length);
 
@@ -96,6 +180,7 @@ async function init() {
 
   console.log('INIT: Grid rendered');
   setupFilters();
+  renderTagCloud();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
 
   document.getElementById('preferitiToggle')?.addEventListener('click', (e) => {
@@ -160,6 +245,7 @@ async function loadCSVAndStatus() {
     });
 
     allItems = Array.from(map.values());
+    await loadTagsForItems();
     await loadStatusForCurrentUser();
 
   } catch (e) {
@@ -437,25 +523,25 @@ function formatPrice(item) {
 
 function filterItems() {
   const q = (document.getElementById('search').value || '').toLowerCase().trim();
-  const locFilter = document.getElementById('catFilter').value;
   const statusFilter = document.getElementById('statusFilter')?.value || '';
 
   return allItems.filter(item => {
-    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No']].join(' ').toLowerCase();
+    const tags = getItemTags(item);
+    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No'], ...tags].join(' ').toLowerCase();
     const matchSearch = !q || searchText.includes(q);
-    const matchLocation = !locFilter || (item.Location || '') === locFilter;
+    const matchTags = !selectedTags.size || tags.includes([...selectedTags][0]);
 
     const isSold = (item.Status || '').trim() === 'Venduto';
     const matchStatus = !statusFilter ||
       (statusFilter === 'Disponibile' && !isSold) ||
       (statusFilter === 'Venduto' && isSold);
 
-    return matchSearch && matchLocation && matchStatus;
+    return matchSearch && matchTags && matchStatus;
   });
 }
 
-function setupFilters() {
-  const sel = document.getElementById('catFilter');
+function setupCategoryFiltersLegacy() {
+  const sel = document.getElementById('legacyCategoryFilter');
 
   // Crea dropdown Status UNA VOLTA SOLA (se non esiste)
   let statusSel = document.getElementById('statusFilter');
@@ -564,6 +650,144 @@ function setupFilters() {
   }
 }
 
+function setupFilters() {
+  let statusSel = document.getElementById('statusFilter');
+  if (!statusSel) {
+    statusSel = document.createElement('select');
+    statusSel.id = 'statusFilter';
+    statusSel.className = 'p-2 border rounded';
+    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
+  }
+
+  const clearBtn = document.getElementById('clearFilters');
+  clearBtn.parentNode.insertBefore(statusSel, clearBtn);
+
+  statusSel.addEventListener('change', () => {
+    displayed = 0;
+    renderGrid();
+    renderTagCloud();
+  });
+
+  let timeout;
+  document.getElementById('search').addEventListener('input', () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      displayed = 0;
+      renderGrid();
+      renderTagCloud();
+    }, 300);
+  });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlTag = normalizeTag(urlParams.get('tag') || window.initialTagFilter || '');
+  if (urlTag) {
+    selectedTags = new Set([urlTag]);
+    saveFilterState();
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      statusSel.value = '';
+      selectedTags.clear();
+      saveFilterState();
+      document.getElementById('search').value = '';
+
+      displayed = 0;
+      renderGrid();
+      renderTagCloud();
+
+      const url = new URL(window.location);
+      url.searchParams.delete('tag');
+      url.searchParams.delete('cat');
+      window.history.replaceState({}, '', url);
+    });
+  }
+}
+
+function renderTagCloud() {
+  const cloud = document.getElementById('tagCloud');
+  if (!cloud) return;
+
+  const statusFilter = document.getElementById('statusFilter')?.value || '';
+  const q = (document.getElementById('search')?.value || '').toLowerCase().trim();
+  const counts = {};
+
+  allItems.forEach(item => {
+    const isSold = (item.Status || '').trim() === 'Venduto';
+    const matchStatus = !statusFilter ||
+      (statusFilter === 'Disponibile' && !isSold) ||
+      (statusFilter === 'Venduto' && isSold);
+    const tags = getItemTags(item);
+    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No'], ...tags].join(' ').toLowerCase();
+    const matchSearch = !q || searchText.includes(q);
+    if (!matchStatus || !matchSearch) return;
+    tags.forEach(tag => {
+      counts[tag] = (counts[tag] || 0) + 1;
+    });
+  });
+
+  const tags = normalizeTags([...tagCatalog, ...Object.keys(counts)])
+    .filter(tag => counts[tag] || selectedTags.has(tag));
+
+  if (!tags.length) {
+    cloud.innerHTML = '<p class="text-sm text-gray-500">Nessun tag disponibile.</p>';
+    return;
+  }
+
+  cloud.innerHTML = `
+    ${tags.map(tag => {
+      const active = selectedTags.has(tag);
+      return `
+        <button type="button"
+                data-tag="${escapeHtml(tag)}"
+                class="tag-filter px-3 py-1.5 text-sm rounded-full transition ${active ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:border-indigo-400 hover:text-indigo-700'}"
+                aria-pressed="${active}">
+          #${escapeHtml(displayTag(tag))} <span class="${active ? 'text-indigo-100' : 'text-gray-400'}">${counts[tag] || 0}</span>
+        </button>`;
+    }).join('')}
+    <button id="clearTagFilters"
+            type="button"
+            class="px-3 py-1.5 text-sm rounded-full border border-gray-300 text-gray-600 hover:text-gray-900 transition ${selectedTags.size ? '' : 'hidden'}">
+      Clear tags
+    </button>
+  `;
+
+  cloud.querySelectorAll('.tag-filter').forEach(button => {
+    button.addEventListener('click', () => toggleTagFilter(button.dataset.tag));
+  });
+  document.getElementById('clearTagFilters')?.addEventListener('click', clearTagFilters);
+}
+
+function toggleTagFilter(tag) {
+  const normalized = normalizeTag(tag);
+  if (!normalized) return;
+
+  if (selectedTags.has(normalized)) selectedTags.delete(normalized);
+  else selectedTags = new Set([normalized]);
+
+  saveFilterState();
+  displayed = 0;
+  renderTagCloud();
+  renderGrid();
+
+  const url = new URL(window.location);
+  selectedTags.size ? url.searchParams.set('tag', [...selectedTags][0]) : url.searchParams.delete('tag');
+  url.searchParams.delete('cat');
+  window.history.replaceState({}, '', url);
+}
+
+function clearTagFilters() {
+  selectedTags.clear();
+  saveFilterState();
+  displayed = 0;
+  renderTagCloud();
+  renderGrid();
+  const url = new URL(window.location);
+  url.searchParams.delete('tag');
+  url.searchParams.delete('cat');
+  window.history.replaceState({}, '', url);
+}
+
 function renderGrid(loadMore = false) {
   if (!loadMore) {
     document.getElementById('grid').innerHTML = '';
@@ -579,7 +803,7 @@ function renderGrid(loadMore = false) {
   // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
   // MESSAGGIO "NESSUN RISULTATO" PERSONALIZZATO
   if (filtered.length === 0) {
-    const cat = document.getElementById('catFilter').value || 'tutte le categorie';
+    const tag = selectedTags.size ? `#${displayTag([...selectedTags][0])}` : 'tutti i tag';
     const status = document.getElementById('statusFilter')?.value || 'tutti gli stati';
     const statusText = status === 'Disponibile' ? 'disponibili' :
       status === 'Venduto' ? 'venduti' : status;
@@ -588,7 +812,7 @@ function renderGrid(loadMore = false) {
     message.className = 'col-span-full text-center py-12 text-gray-500';
     message.innerHTML = `
       <p class="text-lg">Nessun risultato per</p>
-      <p class="text-xl font-medium mt-2">${cat} — ${statusText}</p>
+      <p class="text-xl font-medium mt-2">${escapeHtml(tag)} — ${statusText}</p>
       <p class="text-sm mt-4">Prova a cambiare i filtri o la ricerca</p>
     `;
     container.appendChild(message);
@@ -605,6 +829,9 @@ function renderGrid(loadMore = false) {
     div.dataset.uuid = item.UUID;
 
     const isSold = (item.Status || '').trim() === 'Venduto';
+    const itemTagsHtml = getItemTags(item).slice(0, 3).map(tag =>
+      `<span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">#${escapeHtml(displayTag(tag))}</span>`
+    ).join('');
 
     const photoCountBadge = item.Photos.length > 1 ? `
       <div class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -642,7 +869,7 @@ function renderGrid(loadMore = false) {
       <div class="p-3 flex flex-col justify-between bg-white" style="min-height: 8rem;">
         <div>
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
-          <p class="text-xs text-gray-600 mt-1">Category: ${item.Location || '—'}</p>
+          <div class="flex flex-wrap gap-1 mt-2">${itemTagsHtml || '<span class="text-xs text-gray-500">No tags</span>'}</div>
           <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
         </div>
         <div class="flex justify-between items-start gap-3">
@@ -672,10 +899,14 @@ let currentSwiper = null;
 function openModal(item) {
   // ← Added for permalink
   updateItemPermalink(item.UUID);
+  const tagsHtml = getItemTags(item).map(tag =>
+    `<span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs mr-1 mb-1">#${escapeHtml(displayTag(tag))}</span>`
+  ).join('');
 
   document.getElementById('modalTitle').textContent = item.Item;
   document.getElementById('modalDesc').innerHTML = `
     <strong>ID:</strong> ${item['Serial No'] || '—'}<br>
+    <strong>Tags:</strong> <span class="inline-flex flex-wrap gap-1 align-middle">${tagsHtml || '—'}</span><br>
     <strong>Category:</strong> ${item.Location || '—'}<br>
     <strong>Scatola:</strong> ${item.Categories || '—'}<br>
     ${item.Notes ? `<strong>Notes:</strong><br><span class="text-sm italic text-gray-700">${item.Notes.replace(/\n/g, '<br>')}</span><br>` : ''}

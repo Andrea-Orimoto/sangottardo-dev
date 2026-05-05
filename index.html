@@ -69,15 +69,15 @@
         </header>
 
         <!-- Filters -->
-        <div id="filters" class="mb-6 flex flex-wrap gap-2 items-center">
+        <div id="filters" class="mb-3 flex flex-wrap gap-2 items-center">
             <input type="text" id="search" placeholder="Search items..."
                 class="p-2 border rounded flex-1 min-w-[200px]">
-            <select id="catFilter" class="p-2 border rounded"></select>
             <button id="clearFilters"
                 class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition">
                 reset
             </button>
         </div>
+        <div id="tagCloud" class="mb-6 flex flex-wrap gap-2"></div>
 
         <!-- GRID CONTAINER -->
         <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8"></div>
@@ -115,17 +115,8 @@
         // Read URL params on load
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const cat = urlParams.get('cat');
-            if (cat) {
-                const catFilter = document.getElementById('catFilter');
-                if (catFilter) {
-                    // Wait for options to load
-                    setTimeout(() => {
-                        catFilter.value = cat;
-                        catFilter.dispatchEvent(new Event('change'));
-                    }, 500);
-                }
-            }
+            const tag = urlParams.get('tag') || urlParams.get('cat');
+            if (tag) window.initialTagFilter = tag;
         });
     </script>
     <script src="app.js"></script>

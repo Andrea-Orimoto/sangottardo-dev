@@ -1,19 +1,42 @@
-// auth.js – Versione FINALE DEFINITIVA (funziona ovunque, anche in admin)
-
 const ADMIN_EMAILS = [
     'andrea.orimoto@gmail.com',
     'akikocristina.orimoto@gmail.com'
 ];
 
 window.isAdmin = function (user) {
-    return user && ADMIN_EMAILS.includes(user.email);
+    return !!(user && ADMIN_EMAILS.includes(user.email));
 };
 
 window.currentUser = null;
 
-// Restore saved session
 const saved = localStorage.getItem('sgUser');
-if (saved) window.currentUser = JSON.parse(saved);
+if (saved) {
+    try {
+        window.currentUser = JSON.parse(saved);
+    } catch {
+        localStorage.removeItem('sgUser');
+    }
+}
+
+function firebaseUser() {
+    return typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
+}
+
+function isAdminPage() {
+    return window.location.pathname.includes('admin.html');
+}
+
+function renderGoogleButton(signInDiv, text = 'signin_with') {
+    if (!signInDiv || !window.google?.accounts?.id) return;
+    signInDiv.innerHTML = '';
+    google.accounts.id.renderButton(signInDiv, {
+        theme: 'outline',
+        size: 'large',
+        text,
+        shape: 'rectangular',
+        logo_alignment: 'left'
+    });
+}
 
 function handleCredentialResponse(response) {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
@@ -24,23 +47,18 @@ function handleCredentialResponse(response) {
     };
     localStorage.setItem('sgUser', JSON.stringify(window.currentUser));
 
-    // FORZA FIREBASE AUTH SEMPRE (anche se l'utente è già loggato)
     if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                console.log("Firebase Auth già attivo:", user.email);
-            } else {
-                console.log("Firebase Auth non attivo — forzo con token");
-                const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                firebase.auth().signInWithCredential(credential)
-                    .then((userCred) => {
-                        console.log("Firebase Auth SUCCESS:", userCred.user.email);
-                    })
-                    .catch((err) => {
-                        console.error("Firebase Auth FAILED:", err.message);
-                    });
-            }
-        });
+        const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+        firebase.auth().signInWithCredential(credential)
+            .then((userCred) => {
+                console.log('Firebase Auth SUCCESS:', userCred.user.email);
+                window.updateAuthUI?.();
+                window.dispatchEvent(new CustomEvent('firebase-auth-ready'));
+            })
+            .catch((err) => {
+                console.error('Firebase Auth FAILED:', err.message);
+                window.updateAuthUI?.();
+            });
     }
 
     window.updateAuthUI?.();
@@ -55,7 +73,7 @@ function handleCredentialResponse(response) {
 window.logout = function () {
     window.currentUser = null;
     localStorage.removeItem('sgUser');
-    google.accounts.id.disableAutoSelect();
+    window.google?.accounts?.id?.disableAutoSelect();
 
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().signOut().catch(() => { });
@@ -67,6 +85,9 @@ window.logout = function () {
 
 window.updateAuthUI = function () {
     const hasUser = !!window.currentUser;
+    const fbUser = firebaseUser();
+    const needsFirebaseReconnect = hasUser && isAdminPage() && !fbUser;
+
     const userInfo = document.getElementById('userInfo');
     const userPhoto = document.getElementById('userPhoto');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -79,37 +100,47 @@ window.updateAuthUI = function () {
     }
 
     if (hasUser) {
-        if (userPhoto) userPhoto.src = window.currentUser.picture;
+        if (userPhoto) userPhoto.src = window.currentUser.picture || '';
         userInfo?.classList.remove('hidden');
         logoutBtn?.classList.remove('hidden');
-        signInDiv && (signInDiv.innerHTML = '', signInDiv.classList.add('hidden'));
         if (adminBtn && window.isAdmin(window.currentUser)) adminBtn.classList.remove('hidden');
+
+        if (signInDiv) {
+            if (needsFirebaseReconnect) {
+                signInDiv.classList.remove('hidden');
+                renderGoogleButton(signInDiv, 'continue_with');
+            } else {
+                signInDiv.innerHTML = '';
+                signInDiv.classList.add('hidden');
+            }
+        }
     } else {
         userInfo?.classList.add('hidden');
         logoutBtn?.classList.add('hidden');
         if (adminBtn) adminBtn.classList.add('hidden');
         if (signInDiv) {
             signInDiv.classList.remove('hidden');
-            signInDiv.innerHTML = '';
-            google.accounts.id.renderButton(signInDiv, {
-                theme: 'outline', size: 'large', text: 'signin_with',
-                shape: 'rectangular', logo_alignment: 'left'
-            });
+            renderGoogleButton(signInDiv);
         }
     }
 };
 
-// Inizializza Google Sign-In
+window.requireFirebaseAdminAuth = function () {
+    const fbUser = firebaseUser();
+    if (fbUser && window.isAdmin({ email: fbUser.email })) return true;
+
+    window.updateAuthUI?.();
+    alert('Devi riconnettere Google/Firebase prima di salvare. Usa il pulsante Google in alto a destra, poi riprova.');
+    return false;
+};
+
 window.onload = function () {
     google.accounts.id.initialize({
         client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
         callback: handleCredentialResponse
     });
 
-    const isAdminPage = window.location.pathname.includes('admin.html');
-
-    // Controllo admin
-    if (isAdminPage) {
+    if (isAdminPage()) {
         if (!window.currentUser) {
             window.location.href = 'index.html';
             return;
@@ -119,6 +150,10 @@ window.onload = function () {
             window.location.href = 'index.html';
             return;
         }
+    }
+
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(() => window.updateAuthUI());
     }
 
     window.updateAuthUI();
@@ -132,35 +167,4 @@ window.onload = function () {
     if (window.loadPreferiti && window.currentUser) {
         window.loadPreferiti();
     }
-
-    // FORZA Firebase Auth in admin.html — aspetta che tutto sia pronto
-    if (isAdminPage) {
-        const checkAndForceAuth = () => {
-            if (firebase?.auth && window.currentUser && !firebase.auth().currentUser) {
-                console.log("Admin: forzo autenticazione Firebase...");
-                google.accounts.id.prompt();
-            }
-        };
-        // Prova subito e poi ogni 500ms per 3 secondi
-        checkAndForceAuth();
-        const interval = setInterval(checkAndForceAuth, 500);
-        setTimeout(() => clearInterval(interval), 3000);
-    }
 };
-
-// FORZA FIREBASE AUTH SE L'UTENTE È LOGGATO MA FIREBASE NO
-setTimeout(() => {
-    if (window.currentUser && firebase?.auth && !firebase.auth().currentUser) {
-        console.log("Forzo Firebase Auth...");
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed()) {
-                console.warn("Prompt bloccato — riprovo manualmente");
-                // Fallback: usa il token dalla sessione locale
-                const credential = firebase.auth.GoogleAuthProvider.credential(
-                    response.credential // usa l'ultimo response
-                );
-                firebase.auth().signInWithCredential(credential);
-            }
-        });
-    }
-}, 2000);

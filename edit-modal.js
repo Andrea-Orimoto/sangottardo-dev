@@ -145,6 +145,7 @@ if (!window.editModalInitialized) {
   // SALVATAGGIO CON TOAST — VERSIONE FINALE
   window.saveObjectStatus = async function () {
     if (!window.currentEditingUUID) return;
+    if (!window.requireFirebaseAdminAuth?.()) return;
 
     const status = document.getElementById('editStatus').value;
     const prezzo = document.getElementById('editPrice').value.trim();
@@ -158,22 +159,18 @@ if (!window.editModalInitialized) {
       data: (status === 'Venduto' && date) ? date : null
     };
 
-    Object.keys(payload).forEach(key => payload[key] === null && delete payload[key]);
-
     try {
-      if (Object.keys(payload).length === 0) {
-        await db.ref('status/' + window.currentEditingUUID).remove();
-      } else {
-        await db.ref('status/' + window.currentEditingUUID).set(payload);
-      }
+      await db.ref('status/' + window.currentEditingUUID).update(payload);
 
       const item = allItems.find(i => i.UUID === window.currentEditingUUID);
       if (item) item.Status = status || '';
       if (window.allStatus) {
-        window.allStatus[window.currentEditingUUID] = {
-          stato: status || '',
-          prezzo: prezzo || ''
-        };
+        const currentStatus = { ...(window.allStatus[window.currentEditingUUID] || {}) };
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value === null) delete currentStatus[key];
+          else currentStatus[key] = value;
+        });
+        window.allStatus[window.currentEditingUUID] = currentStatus;
       }
       if (window.adminStatusDetails) {
         if (status === 'Venduto' && (buyer || date)) {
