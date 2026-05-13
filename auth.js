@@ -22,6 +22,32 @@ function firebaseUser() {
     return typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
 }
 
+window.hasFirebaseAdminAuth = function () {
+    const fbUser = firebaseUser();
+    return !!(fbUser && window.isAdmin({ email: fbUser.email }));
+};
+
+window.waitForFirebaseAdminAuth = function (timeoutMs = 3000) {
+    if (window.hasFirebaseAdminAuth()) return Promise.resolve(true);
+    if (typeof firebase === 'undefined' || !firebase.auth) return Promise.resolve(false);
+
+    return new Promise(resolve => {
+        let done = false;
+        const finish = value => {
+            if (done) return;
+            done = true;
+            unsubscribe?.();
+            clearTimeout(timer);
+            resolve(value);
+        };
+
+        const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+            finish(!!(user && window.isAdmin({ email: user.email })));
+        });
+        const timer = setTimeout(() => finish(window.hasFirebaseAdminAuth()), timeoutMs);
+    });
+};
+
 function isAdminPage() {
     return window.location.pathname.includes('admin.html');
 }
@@ -86,14 +112,13 @@ window.logout = function () {
 window.updateAuthUI = function () {
     const hasUser = !!window.currentUser;
     const fbUser = firebaseUser();
-    const needsFirebaseReconnect = hasUser && isAdminPage() && !fbUser;
-
     const userInfo = document.getElementById('userInfo');
     const userPhoto = document.getElementById('userPhoto');
     const logoutBtn = document.getElementById('logoutBtn');
     const signInDiv = document.getElementById('googleSignInButton');
     const adminBtn = document.getElementById('adminBtn');
     const preferitiBtn = document.getElementById('preferitiToggle');
+    const needsFirebaseReconnect = hasUser && window.isAdmin(window.currentUser) && !fbUser;
 
     if (preferitiBtn) {
         hasUser ? preferitiBtn.classList.remove('hidden') : preferitiBtn.classList.add('hidden');

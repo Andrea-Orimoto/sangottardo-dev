@@ -17,6 +17,9 @@ let allItems = [], displayed = 0;
 window.statusData = {};
 window.allStatus = {};
 window.adminStatusDetails = {};
+window.itemBoxes = {};
+window.boxLocations = {};
+window.looseItemLocations = {};
 let selectedTags = new Set();
 let tagCatalog = [];
 let itemTags = {};
@@ -68,6 +71,63 @@ function saveFilterState() {
 
 function getItemTags(item) {
   return normalizeTags(item?.Tags || []);
+}
+
+function getItemBox(item) {
+  return String(window.itemBoxes?.[item?.UUID] || '').trim();
+}
+
+function getBoxLocation(box) {
+  return box ? String(window.boxLocations?.[box] || '').trim() : '';
+}
+
+function getLooseItemLocation(item) {
+  return String(window.looseItemLocations?.[item?.UUID] || '').trim();
+}
+
+function formatBoxWithLocation(box) {
+  const location = getBoxLocation(box);
+  return location ? `${box} (${location})` : box;
+}
+
+function getAdminPositionLine(item) {
+  if (!isCurrentAdmin()) return '';
+
+  const box = getItemBox(item);
+  if (box) return `Scatola: ${escapeHtml(formatBoxWithLocation(box))}`;
+
+  const location = getLooseItemLocation(item);
+  if (location) return `Posizione: ${escapeHtml(location)}`;
+
+  return '';
+}
+
+async function loadPositionData() {
+  window.itemBoxes = {};
+  window.boxLocations = {};
+  window.looseItemLocations = {};
+
+  if (!isCurrentAdmin()) return;
+
+  try {
+    const hasAuth = await window.waitForFirebaseAdminAuth?.(2500);
+    if (!hasAuth) {
+      console.warn('Posizioni non caricate: riconnetti Google/Firebase come admin.');
+      return;
+    }
+
+    const [itemBoxesSnapshot, boxLocationsSnapshot, looseItemLocationsSnapshot] = await Promise.all([
+      db.ref('itemBoxes').once('value'),
+      db.ref('boxLocations').once('value'),
+      db.ref('looseItemLocations').once('value')
+    ]);
+
+    window.itemBoxes = itemBoxesSnapshot.val() || {};
+    window.boxLocations = boxLocationsSnapshot.val() || {};
+    window.looseItemLocations = looseItemLocationsSnapshot.val() || {};
+  } catch (err) {
+    console.warn('Impossibile caricare le posizioni da Firebase', err);
+  }
 }
 
 async function loadTagsForItems() {
@@ -246,6 +306,7 @@ async function loadCSVAndStatus() {
 
     allItems = Array.from(map.values());
     await loadTagsForItems();
+    await loadPositionData();
     await loadStatusForCurrentUser();
 
   } catch (e) {
@@ -305,6 +366,7 @@ async function loadStatusForCurrentUser() {
 window.reloadStatusForCurrentUser = async function () {
   if (allItems.length === 0) return;
   await loadStatusForCurrentUser();
+  await loadPositionData();
   displayed = 0;
   renderGrid();
 };
@@ -527,7 +589,9 @@ function filterItems() {
 
   return allItems.filter(item => {
     const tags = getItemTags(item);
-    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No'], ...tags].join(' ').toLowerCase();
+    const box = getItemBox(item);
+    const adminPositionTerms = isCurrentAdmin() ? [box, getBoxLocation(box), getLooseItemLocation(item)] : [];
+    const searchText = [item.Item, item.Location, item.Notes, item['Serial No'], ...adminPositionTerms, ...tags].join(' ').toLowerCase();
     const matchSearch = !q || searchText.includes(q);
     const matchTags = !selectedTags.size || tags.includes([...selectedTags][0]);
 
@@ -718,7 +782,9 @@ function renderTagCloud() {
       (statusFilter === 'Disponibile' && !isSold) ||
       (statusFilter === 'Venduto' && isSold);
     const tags = getItemTags(item);
-    const searchText = [item.Item, item.Location, item.Categories, item.Notes, item['Serial No'], ...tags].join(' ').toLowerCase();
+    const box = getItemBox(item);
+    const adminPositionTerms = isCurrentAdmin() ? [box, getBoxLocation(box), getLooseItemLocation(item)] : [];
+    const searchText = [item.Item, item.Location, item.Notes, item['Serial No'], ...adminPositionTerms, ...tags].join(' ').toLowerCase();
     const matchSearch = !q || searchText.includes(q);
     if (!matchStatus || !matchSearch) return;
     tags.forEach(tag => {
@@ -858,9 +924,9 @@ function renderGrid(loadMore = false) {
     const statusHtml = isSold
       ? `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`
       : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
-    const box = String(item.Categories || '').trim();
-    const boxHtml = isCurrentAdmin() && box
-      ? `<p class="text-xs text-gray-500">Scatola: ${escapeHtml(box)}</p>`
+    const positionLine = getAdminPositionLine(item);
+    const positionHtml = positionLine
+      ? `<p class="text-xs text-gray-500">${positionLine}</p>`
       : '';
 
     div.innerHTML = `
@@ -875,7 +941,7 @@ function renderGrid(loadMore = false) {
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
           <div class="flex flex-wrap gap-1 mt-2">${itemTagsHtml || '<span class="text-xs text-gray-500">No tags</span>'}</div>
           <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
-          ${boxHtml}
+          ${positionHtml}
         </div>
         <div class="flex justify-between items-start gap-3">
           <p class="text-sm font-medium text-indigo-600">Prezzo: ${formatPrice(item)}</p>
@@ -909,11 +975,15 @@ function openModal(item) {
   ).join('');
 
   document.getElementById('modalTitle').textContent = item.Item;
+  const adminPositionLine = getAdminPositionLine(item);
+  const adminPositionHtml = adminPositionLine
+    ? `<strong>${adminPositionLine.split(':')[0]}:</strong>${adminPositionLine.slice(adminPositionLine.indexOf(':') + 1)}<br>`
+    : '';
   document.getElementById('modalDesc').innerHTML = `
     <strong>ID:</strong> ${item['Serial No'] || '—'}<br>
     <strong>Tags:</strong> <span class="inline-flex flex-wrap gap-1 align-middle">${tagsHtml || '—'}</span><br>
     <strong>Category:</strong> ${item.Location || '—'}<br>
-    <strong>Scatola:</strong> ${item.Categories || '—'}<br>
+    ${adminPositionHtml}
     ${item.Notes ? `<strong>Notes:</strong><br><span class="text-sm italic text-gray-700">${item.Notes.replace(/\n/g, '<br>')}</span><br>` : ''}
     ${item['Purchase Date'] ? `<strong>Purchased:</strong> ${item['Purchase Date']}<br>` : ''}
     <strong>Prezzo:</strong> ${formatPrice(item)}

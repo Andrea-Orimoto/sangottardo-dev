@@ -30,6 +30,7 @@
                 <div id="userInfo" class="hidden flex items-center gap-3">
                     <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indig o-600" src="" alt="">
                 </div>
+                <div id="googleSignInButton" class="hidden"></div>
                 <button id="logoutBtn"
                     class="hidden bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded transition">
                     Logout
@@ -48,6 +49,10 @@
                 </button>
                 <button id="tab-tags" class="tab-btn py-2 px-1 border-b-2 border-transparent hover:text-indigo-600">
                     Tags
+                </button>
+                <button id="tab-positions"
+                    class="tab-btn py-2 px-1 border-b-2 border-transparent hover:text-indigo-600">
+                    Posizioni
                 </button>
             </nav>
         </div>
@@ -101,6 +106,30 @@
             </div>
             <datalist id="tagSuggestions"></datalist>
         </div>
+        <div id="view-positions" class="view hidden">
+            <section class="bg-white rounded-2xl shadow-lg p-5 mb-6">
+                <div class="flex flex-wrap items-center gap-3">
+                    <form id="addLocationForm" class="flex gap-2">
+                        <input id="newLocationInput" class="min-w-0 border rounded-lg px-3 py-2"
+                            placeholder="Nuova location">
+                        <button class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white">Add</button>
+                    </form>
+                    <form id="addBoxForm" class="flex gap-2">
+                        <input id="newBoxInput" class="min-w-0 border rounded-lg px-3 py-2"
+                            placeholder="Nuova scatola">
+                        <button class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-900 text-white">Add</button>
+                    </form>
+                    <input id="positionSearch" class="flex-1 min-w-[220px] border rounded-lg px-3 py-2"
+                        placeholder="Cerca oggetto, ID o scatola">
+                    <span id="positionSummary" class="text-sm text-gray-500"></span>
+                </div>
+            </section>
+            <section id="positionsGrid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5"></section>
+            <section class="mt-6 bg-white rounded-2xl shadow-lg p-5">
+                <h2 class="font-bold text-lg mb-3">Da assegnare</h2>
+                <div id="unassignedItems" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+            </section>
+        </div>
     </div>
 
     <script>
@@ -119,6 +148,11 @@
         let allItems = [];
         let itemTags = {};
         let tagCatalog = [];
+        let itemBoxes = {};
+        let boxLocations = {};
+        let boxLocationCatalog = {};
+        let looseItemLocations = {};
+        let positionLoadError = '';
         const pendingTagWrites = new Set();
         const stickyReviewIds = new Set();
         const TAG_PAGE_SIZE = 40;
@@ -163,6 +197,7 @@
         document.getElementById('tab-users').onclick = () => switchTab('users');
         document.getElementById('tab-items').onclick = () => switchTab('items');
         document.getElementById('tab-tags').onclick = () => switchTab('tags');
+        document.getElementById('tab-positions').onclick = () => switchTab('positions');
 
         function switchTab(mode) {
             document.querySelectorAll('.tab-btn').forEach(b => {
@@ -204,6 +239,37 @@
             return normalizeTags(item?.Tags || []);
         }
 
+        function firebaseKey(value) {
+            return String(value || '').trim().replace(/[.#$\/\[\]]/g, '-');
+        }
+
+        function isValidFirebaseKey(value) {
+            return !!String(value || '').trim() && !/[.#$\/\[\]]/.test(String(value));
+        }
+
+        function getItemBox(item) {
+            return String(itemBoxes?.[item?.UUID] || '').trim();
+        }
+
+        function getBoxLocation(box) {
+            return box ? String(boxLocations?.[box] || '').trim() : '';
+        }
+
+        function getLooseItemLocation(item) {
+            return String(looseItemLocations?.[item?.UUID] || '').trim();
+        }
+
+        function formatPosition(item) {
+            const box = getItemBox(item);
+            if (box) {
+                const location = getBoxLocation(box);
+                return location ? `Scatola: ${box} (${location})` : `Scatola: ${box}`;
+            }
+
+            const looseLocation = getLooseItemLocation(item);
+            return looseLocation ? `Posizione: ${looseLocation}` : 'Senza posizione';
+        }
+
         function renderSoldDetails(statusInfo) {
             const soldTo = statusInfo?.vendutoA || '';
             const soldDate = statusInfo?.data || '';
@@ -217,6 +283,43 @@
                     ${soldDate ? `il ${new Date(soldDate).toLocaleDateString('it-IT')}` : ''}
                 </div>
             `;
+        }
+
+        async function loadPositionData() {
+            positionLoadError = '';
+
+            const hasAuth = await window.waitForFirebaseAdminAuth?.(2500);
+            if (!hasAuth) {
+                positionLoadError = 'Riconnetti Google/Firebase per leggere e modificare le posizioni.';
+                itemBoxes = {};
+                boxLocations = {};
+                boxLocationCatalog = {};
+                looseItemLocations = {};
+                return false;
+            }
+
+            try {
+                const [itemBoxesSnapshot, boxLocationsSnapshot, catalogSnapshot, looseSnapshot] = await Promise.all([
+                    db.ref('itemBoxes').once('value'),
+                    db.ref('boxLocations').once('value'),
+                    db.ref('boxLocationCatalog').once('value'),
+                    db.ref('looseItemLocations').once('value')
+                ]);
+
+                itemBoxes = itemBoxesSnapshot.val() || {};
+                boxLocations = boxLocationsSnapshot.val() || {};
+                boxLocationCatalog = catalogSnapshot.val() || {};
+                looseItemLocations = looseSnapshot.val() || {};
+                return true;
+            } catch (err) {
+                console.warn('Position load failed:', err);
+                positionLoadError = 'Firebase non consente ancora accesso ai nodi posizione. Controlla le rules per itemBoxes, boxLocations, boxLocationCatalog e looseItemLocations.';
+                itemBoxes = {};
+                boxLocations = {};
+                boxLocationCatalog = {};
+                looseItemLocations = {};
+                return false;
+            }
         }
 
         async function loadAllFavorites() {
@@ -254,9 +357,11 @@
                 });
 
                 await loadTagData();
+                await loadPositionData();
                 renderByUser(allFavorites);
                 renderByItem(allFavorites);
                 renderTagAdmin();
+                renderPositionsAdmin();
             } catch (err) {
                 console.error('Admin load failed:', err);
                 document.getElementById('users-list').innerHTML = `
@@ -292,7 +397,7 @@
                         if (!item) return '';
 
                         const id = item['Serial No'] || '—';
-                        const box = item.Categories || '—';
+                        const position = formatPosition(item);
 
                         const statusInfo = window.allStatus?.[d.id] || {};
                         const currentStatus = item.Status || 'Disponibile';
@@ -348,7 +453,7 @@
                         <div class="flex-1 min-w-0 break-words">
                             <div class="font-bold text-lg sm:text-xl leading-tight">${item.Item}</div>
                             <div class="text-sm text-gray-600 mt-1">
-                                ID: ${id} • Scatola: ${box}
+                                ID: ${id} • ${escapeHtml(position)}
                                 ${prezzoVendita ? ` • Prezzo: <strong>${prezzoVendita}</strong>` : ''}
                             </div>
                             <div class="text-xs text-gray-500 mt-1">
@@ -423,7 +528,7 @@
                 if (!item) return;
 
                 const id = item['Serial No'] || '—';
-                const box = item.Categories || '—';
+                const position = formatPosition(item);
 
                 const statusInfo = window.allStatus?.[uuid] || {};
                 const currentStatus = item.Status || 'Disponibile';
@@ -488,7 +593,7 @@
                         <div class="flex-1 min-w-0 break-words">
                             <div class="font-bold text-lg sm:text-xl leading-tight">${item.Item}</div>
                             <div class="text-sm text-gray-600 mt-1">
-                                ID: ${id} • Scatola: ${box}
+                                ID: ${id} • ${escapeHtml(position)}
                                 ${prezzoVendita ? ` • Prezzo: <strong>${prezzoVendita}</strong>` : ''}
                             </div>
                         </div>
@@ -568,7 +673,9 @@
                 return [
                     item.Item,
                     item.Location,
-                    item.Categories,
+                    getItemBox(item),
+                    getBoxLocation(getItemBox(item)),
+                    getLooseItemLocation(item),
                     item['Serial No'],
                     item.Notes,
                     ...tags
@@ -619,7 +726,7 @@
                         <div class="min-w-0">
                             <div class="font-bold leading-tight">${escapeHtml(item.Item)}</div>
                             <div class="text-sm text-gray-600 mt-1">
-                                ID: ${escapeHtml(item['Serial No'] || '—')} • Categoria: ${escapeHtml(item.Location || '—')} • Scatola: ${escapeHtml(item.Categories || '—')}
+                                ID: ${escapeHtml(item['Serial No'] || '—')} • Categoria: ${escapeHtml(item.Location || '—')} • ${escapeHtml(formatPosition(item))}
                             </div>
                             <div class="flex flex-wrap gap-1 mt-2">${currentTagPills || '<span class="text-xs text-gray-500">Senza tag</span>'}</div>
                             <form class="quick-tag-form flex gap-2 mt-3" data-id="${escapeHtml(id)}">
@@ -716,7 +823,250 @@
             return normalized;
         }
 
+        function allKnownBoxes() {
+            return [...new Set([
+                ...Object.values(itemBoxes || {}),
+                ...Object.keys(boxLocations || {})
+            ].map(value => String(value || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        }
+
+        function allKnownLocations() {
+            return [...new Set([
+                ...Object.keys(boxLocationCatalog || {}),
+                ...Object.values(boxLocations || {}),
+                ...Object.values(looseItemLocations || {})
+            ].map(value => String(value || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        }
+
+        function positionMatches(item, query) {
+            if (!query) return true;
+            const box = getItemBox(item);
+            return [
+                item.Item,
+                item['Serial No'],
+                item.Location,
+                box,
+                getBoxLocation(box),
+                getLooseItemLocation(item)
+            ].join(' ').toLowerCase().includes(query);
+        }
+
+        function renderPositionItem(item) {
+            const currentBox = getItemBox(item);
+            const currentLooseLocation = getLooseItemLocation(item);
+            const destinationValue = currentBox ? `box:${currentBox}` : (currentLooseLocation ? `loose:${currentLooseLocation}` : '');
+            const boxOptions = allKnownBoxes().map(box =>
+                `<option value="box:${escapeHtml(box)}" ${destinationValue === `box:${box}` ? 'selected' : ''}>Scatola: ${escapeHtml(box)}</option>`
+            ).join('');
+            const locationOptions = allKnownLocations().map(location =>
+                `<option value="loose:${escapeHtml(location)}" ${destinationValue === `loose:${location}` ? 'selected' : ''}>Sciolto: ${escapeHtml(location)}</option>`
+            ).join('');
+
+            return `
+                <div draggable="true" data-drag-type="item" data-id="${escapeHtml(item.UUID)}"
+                     class="position-draggable rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
+                    <div class="flex items-center gap-2">
+                    <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.jpg')}"
+                         class="w-10 h-10 rounded object-cover bg-gray-100"
+                         onerror="this.src='images/placeholder.jpg'">
+                    <div class="min-w-0 flex-1">
+                        <div class="font-medium truncate">${escapeHtml(item.Item)}</div>
+                        <div class="text-xs text-gray-500">${escapeHtml(item['Serial No'] || '—')}</div>
+                    </div>
+                    <button class="position-clear text-xs text-gray-400 hover:text-red-600"
+                            data-clear-item="${escapeHtml(item.UUID)}">Rimuovi</button>
+                    </div>
+                    <select class="item-destination mt-2 w-full rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs"
+                            data-item-destination="${escapeHtml(item.UUID)}">
+                        <option value="" ${destinationValue ? '' : 'selected'}>Nessuna posizione</option>
+                        ${boxOptions ? `<optgroup label="Scatole">${boxOptions}</optgroup>` : ''}
+                        ${locationOptions ? `<optgroup label="Location sciolto">${locationOptions}</optgroup>` : ''}
+                    </select>
+                </div>`;
+        }
+
+        function renderPositionBox(box) {
+            const query = (document.getElementById('positionSearch')?.value || '').trim().toLowerCase();
+            const items = allItems
+                .filter(item => getItemBox(item) === box && positionMatches(item, query))
+                .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
+            const locationOptions = allKnownLocations().map(location =>
+                `<option value="${escapeHtml(location)}" ${getBoxLocation(box) === location ? 'selected' : ''}>${escapeHtml(location)}</option>`
+            ).join('');
+
+            return `
+                <article draggable="true" data-drag-type="box" data-box="${escapeHtml(box)}"
+                         class="position-draggable rounded-xl border border-indigo-100 bg-indigo-50 p-3 cursor-move">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="font-bold text-indigo-800">${escapeHtml(box)}</h3>
+                        <button type="button"
+                                class="box-toggle flex items-center gap-2 text-xs text-indigo-700 hover:text-indigo-900"
+                                data-box-toggle="${escapeHtml(box)}"
+                                aria-expanded="false">
+                            <span>${items.length} oggett${items.length === 1 ? 'o' : 'i'}</span>
+                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <select class="box-location mt-2 w-full rounded border border-indigo-200 bg-white px-2 py-1 text-xs"
+                            data-box-location="${escapeHtml(box)}">
+                        <option value="" ${getBoxLocation(box) ? '' : 'selected'}>Senza location</option>
+                        ${locationOptions}
+                    </select>
+                    <div class="position-drop min-h-[44px] space-y-2 rounded-lg border border-dashed border-indigo-200 bg-white/60 p-2"
+                         data-drop-kind="box" data-box="${escapeHtml(box)}">
+                        <p class="box-collapsed-hint text-xs text-gray-500">Trascina oggetti qui o apri la lista.</p>
+                        <div class="box-items hidden space-y-2">
+                            ${items.map(renderPositionItem).join('') || '<p class="text-xs text-gray-500">Trascina oggetti qui.</p>'}
+                        </div>
+                    </div>
+                </article>`;
+        }
+
+        function renderLocationCard(location) {
+            const boxes = allKnownBoxes().filter(box => getBoxLocation(box) === location);
+            const looseItems = allItems
+                .filter(item => getLooseItemLocation(item) === location && positionMatches(item, (document.getElementById('positionSearch')?.value || '').trim().toLowerCase()))
+                .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
+
+            return `
+                <article class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="px-5 py-4 border-b bg-gray-50">
+                        <h2 class="font-bold text-xl">${escapeHtml(location)}</h2>
+                        <p class="text-sm text-gray-500">${boxes.length} scatol${boxes.length === 1 ? 'a' : 'e'} • ${looseItems.length} sciolt${looseItems.length === 1 ? 'o' : 'i'}</p>
+                    </div>
+                    <div class="position-drop min-h-[96px] p-4 space-y-3" data-drop-kind="location" data-location="${escapeHtml(location)}">
+                        ${boxes.map(renderPositionBox).join('') || '<p class="text-sm text-gray-500">Trascina scatole qui.</p>'}
+                    </div>
+                    <div class="border-t border-gray-100 p-4">
+                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Oggetti sciolti</div>
+                        <div class="position-drop min-h-[52px] space-y-2 rounded-lg border border-dashed border-gray-200 p-2"
+                             data-drop-kind="loose" data-location="${escapeHtml(location)}">
+                            ${looseItems.map(renderPositionItem).join('') || '<p class="text-xs text-gray-500">Trascina oggetti qui.</p>'}
+                        </div>
+                    </div>
+                </article>`;
+        }
+
+        function renderPositionsAdmin() {
+            const grid = document.getElementById('positionsGrid');
+            const unassigned = document.getElementById('unassignedItems');
+            if (!grid || !unassigned) return;
+
+            if (positionLoadError) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-2xl p-5">
+                        ${escapeHtml(positionLoadError)}
+                    </div>`;
+                unassigned.innerHTML = '';
+                document.getElementById('positionSummary').textContent = 'Posizioni non caricate';
+                return;
+            }
+
+            const locations = allKnownLocations();
+            const unassignedBoxes = allKnownBoxes().filter(box => !getBoxLocation(box));
+            const query = (document.getElementById('positionSearch')?.value || '').trim().toLowerCase();
+            const unassignedItems = allItems
+                .filter(item => !getItemBox(item) && !getLooseItemLocation(item) && positionMatches(item, query))
+                .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
+
+            grid.innerHTML = `
+                ${locations.map(renderLocationCard).join('')}
+                <article class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="px-5 py-4 border-b bg-gray-50">
+                        <h2 class="font-bold text-xl">Scatole senza location</h2>
+                        <p class="text-sm text-gray-500">${unassignedBoxes.length} da assegnare</p>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        ${unassignedBoxes.map(renderPositionBox).join('') || '<p class="text-sm text-gray-500">Tutte le scatole hanno una location.</p>'}
+                    </div>
+                </article>`;
+
+            unassigned.innerHTML = unassignedItems.map(renderPositionItem).join('') || '<p class="text-sm text-gray-500">Nessun oggetto senza posizione.</p>';
+            document.getElementById('positionSummary').textContent =
+                `${allKnownBoxes().length} scatole • ${locations.length} location • ${unassignedItems.length} oggetti senza posizione`;
+        }
+
+        async function saveBoxLocation(box, location) {
+            if (!window.requireFirebaseAdminAuth?.()) return;
+            if (location) {
+                boxLocations[box] = location;
+                boxLocationCatalog[firebaseKey(location)] = true;
+            } else {
+                delete boxLocations[box];
+            }
+            renderPositionsAdmin();
+            if (location) {
+                await Promise.all([
+                    db.ref(`boxLocations/${box}`).set(location),
+                    db.ref(`boxLocationCatalog/${firebaseKey(location)}`).set(true)
+                ]);
+            } else {
+                await db.ref(`boxLocations/${box}`).remove();
+            }
+        }
+
+        async function saveItemBox(id, box) {
+            if (!window.requireFirebaseAdminAuth?.()) return;
+            itemBoxes[id] = box;
+            delete looseItemLocations[id];
+            renderPositionsAdmin();
+            await Promise.all([
+                db.ref(`itemBoxes/${id}`).set(box),
+                db.ref(`looseItemLocations/${id}`).remove()
+            ]);
+        }
+
+        async function saveLooseItemLocation(id, location) {
+            if (!window.requireFirebaseAdminAuth?.()) return;
+            looseItemLocations[id] = location;
+            delete itemBoxes[id];
+            boxLocationCatalog[firebaseKey(location)] = true;
+            renderPositionsAdmin();
+            await Promise.all([
+                db.ref(`looseItemLocations/${id}`).set(location),
+                db.ref(`itemBoxes/${id}`).remove(),
+                db.ref(`boxLocationCatalog/${firebaseKey(location)}`).set(true)
+            ]);
+        }
+
+        async function clearItemPosition(id) {
+            if (!window.requireFirebaseAdminAuth?.()) return;
+            delete itemBoxes[id];
+            delete looseItemLocations[id];
+            renderPositionsAdmin();
+            await Promise.all([
+                db.ref(`itemBoxes/${id}`).remove(),
+                db.ref(`looseItemLocations/${id}`).remove()
+            ]);
+        }
+
         document.addEventListener('click', async (event) => {
+            const clearButton = event.target.closest('[data-clear-item]');
+            if (clearButton) {
+                event.preventDefault();
+                await clearItemPosition(clearButton.dataset.clearItem);
+                return;
+            }
+
+            const boxToggle = event.target.closest('[data-box-toggle]');
+            if (boxToggle) {
+                event.preventDefault();
+                event.stopPropagation();
+                const article = boxToggle.closest('[data-box]');
+                const itemList = article?.querySelector('.box-items');
+                const hint = article?.querySelector('.box-collapsed-hint');
+                const icon = boxToggle.querySelector('svg');
+                const isOpening = itemList?.classList.contains('hidden');
+
+                itemList?.classList.toggle('hidden', !isOpening);
+                hint?.classList.toggle('hidden', isOpening);
+                icon?.classList.toggle('rotate-180', isOpening);
+                boxToggle.setAttribute('aria-expanded', String(isOpening));
+                return;
+            }
+
             const tagButton = event.target.closest('.tag-toggle');
             const doneButton = event.target.closest('[data-done-id]');
 
@@ -739,6 +1089,46 @@
         });
 
         document.addEventListener('submit', async (event) => {
+            if (event.target.id === 'addLocationForm') {
+                event.preventDefault();
+                const input = document.getElementById('newLocationInput');
+                const location = input.value.trim();
+                if (!location) return;
+
+                try {
+                    boxLocationCatalog[firebaseKey(location)] = true;
+                    renderPositionsAdmin();
+                    await db.ref(`boxLocationCatalog/${firebaseKey(location)}`).set(true);
+                    input.value = '';
+                } catch (err) {
+                    console.warn('Location creation failed', err);
+                    alert('Location save failed. Please check Firebase permissions and try again.');
+                }
+                return;
+            }
+
+            if (event.target.id === 'addBoxForm') {
+                event.preventDefault();
+                const input = document.getElementById('newBoxInput');
+                const box = input.value.trim();
+                if (!box) return;
+                if (!isValidFirebaseKey(box)) {
+                    alert('La scatola non puo contenere . # $ / [ ]');
+                    return;
+                }
+
+                try {
+                    boxLocations[box] = '';
+                    renderPositionsAdmin();
+                    await db.ref(`boxLocations/${box}`).set('');
+                    input.value = '';
+                } catch (err) {
+                    console.warn('Box creation failed', err);
+                    alert('Box save failed. Please check Firebase permissions and try again.');
+                }
+                return;
+            }
+
             if (event.target.id === 'addTagForm') {
                 event.preventDefault();
                 const input = document.getElementById('newTagInput');
@@ -794,6 +1184,85 @@
                 resetTagRenderLimit();
                 renderTagAdmin();
             });
+        });
+
+        document.getElementById('positionSearch')?.addEventListener('input', renderPositionsAdmin);
+
+        document.addEventListener('change', async (event) => {
+            const boxSelect = event.target.closest('[data-box-location]');
+            const itemSelect = event.target.closest('[data-item-destination]');
+
+            try {
+                if (boxSelect) {
+                    await saveBoxLocation(boxSelect.dataset.boxLocation, boxSelect.value);
+                    return;
+                }
+
+                if (itemSelect) {
+                    const id = itemSelect.dataset.itemDestination;
+                    const value = itemSelect.value;
+
+                    if (!value) {
+                        await clearItemPosition(id);
+                    } else if (value.startsWith('box:')) {
+                        await saveItemBox(id, value.slice(4));
+                    } else if (value.startsWith('loose:')) {
+                        await saveLooseItemLocation(id, value.slice(6));
+                    }
+                }
+            } catch (err) {
+                console.warn('Position change failed', err);
+                alert('Position save failed. Please check Firebase permissions and try again.');
+                await loadPositionData();
+                renderPositionsAdmin();
+            }
+        });
+
+        document.addEventListener('dragstart', (event) => {
+            const draggable = event.target.closest('.position-draggable');
+            if (!draggable) return;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('application/json', JSON.stringify({
+                type: draggable.dataset.dragType,
+                id: draggable.dataset.id || '',
+                box: draggable.dataset.box || ''
+            }));
+        });
+
+        document.addEventListener('dragover', (event) => {
+            if (event.target.closest('.position-drop')) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+            }
+        });
+
+        document.addEventListener('drop', async (event) => {
+            const drop = event.target.closest('.position-drop');
+            if (!drop) return;
+            event.preventDefault();
+
+            let payload = {};
+            try {
+                payload = JSON.parse(event.dataTransfer.getData('application/json') || '{}');
+            } catch {
+                return;
+            }
+
+            try {
+                const location = drop.dataset.location || drop.closest('[data-location]')?.dataset.location || '';
+                if (payload.type === 'box' && location) {
+                    await saveBoxLocation(payload.box, location);
+                } else if (payload.type === 'item' && drop.dataset.box) {
+                    await saveItemBox(payload.id, drop.dataset.box);
+                } else if (payload.type === 'item' && location) {
+                    await saveLooseItemLocation(payload.id, location);
+                }
+            } catch (err) {
+                console.warn('Position save failed', err);
+                alert('Position save failed. Please check Firebase permissions and try again.');
+                await loadPositionData();
+                renderPositionsAdmin();
+            }
         });
 
         document.getElementById('tagAdminLoadMore')?.addEventListener('click', () => {
