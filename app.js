@@ -858,6 +858,10 @@ function renderGrid(loadMore = false) {
     const statusHtml = isSold
       ? `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`
       : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
+    const box = String(item.Categories || '').trim();
+    const boxHtml = isCurrentAdmin() && box
+      ? `<p class="text-xs text-gray-500">Scatola: ${escapeHtml(box)}</p>`
+      : '';
 
     div.innerHTML = `
       <div class="bg-gray-100 flex items-center justify-center rounded-t-lg h-48 relative overflow-hidden">
@@ -871,6 +875,7 @@ function renderGrid(loadMore = false) {
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
           <div class="flex flex-wrap gap-1 mt-2">${itemTagsHtml || '<span class="text-xs text-gray-500">No tags</span>'}</div>
           <p class="text-xs text-gray-500">ID: ${item['Serial No'] || '—'}</p>
+          ${boxHtml}
         </div>
         <div class="flex justify-between items-start gap-3">
           <p class="text-sm font-medium text-indigo-600">Prezzo: ${formatPrice(item)}</p>
