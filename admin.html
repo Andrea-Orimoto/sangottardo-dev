@@ -852,6 +852,8 @@
         }
 
         function renderPositionItem(item) {
+            const statusInfo = window.allStatus?.[item.UUID] || {};
+            const isSold = (statusInfo.stato || item.Status) === 'Venduto';
             const currentBox = getItemBox(item);
             const currentLooseLocation = getLooseItemLocation(item);
             const destinationValue = currentBox ? `box:${currentBox}` : (currentLooseLocation ? `loose:${currentLooseLocation}` : '');
@@ -864,7 +866,7 @@
 
             return `
                 <div draggable="true" data-drag-type="item" data-id="${escapeHtml(item.UUID)}"
-                     class="position-draggable rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
+                     class="position-draggable ${isSold ? 'position-item-sold' : ''} rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
                     <div class="flex items-center gap-2">
                     <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.jpg')}"
                          class="w-10 h-10 rounded object-cover bg-gray-100"
