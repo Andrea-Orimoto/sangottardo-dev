@@ -148,6 +148,8 @@ window.updateAuthUI = function () {
             renderGoogleButton(signInDiv);
         }
     }
+
+    window.dispatchEvent(new CustomEvent('san-gottardo-auth-changed'));
 };
 
 window.requireFirebaseAdminAuth = function () {

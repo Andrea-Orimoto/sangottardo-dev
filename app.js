@@ -23,6 +23,10 @@ window.looseItemLocations = {};
 let selectedTags = new Set();
 let tagCatalog = [];
 let itemTags = {};
+let isTagMode = true;
+let activeTagEditorId = null;
+let activeTagEditorPosition = null;
+let pendingTagWrites = new Set();
 
 const FILTER_STORAGE_KEY = 'sanGottardoFilters';
 
@@ -241,6 +245,7 @@ async function init() {
   console.log('INIT: Grid rendered');
   setupFilters();
   renderTagCloud();
+  setupInlineTagging();
   document.getElementById('loadMore').onclick = () => renderGrid(true);
 
   document.getElementById('preferitiToggle')?.addEventListener('click', (e) => {
@@ -386,6 +391,353 @@ function getAdminSoldDetailsHtml(item) {
       ${soldTo && soldDate ? '<br>' : ''}
       ${soldDate ? `il ${formatSoldDate(soldDate)}` : ''}
     </div>`;
+}
+
+function renderTagEditButton(item) {
+  if (!isTagMode || !isCurrentAdmin()) return '';
+
+  const id = item.UUID;
+  const pending = Array.from(pendingTagWrites).some(key => key.startsWith(`${id}:`));
+
+  return `
+    <button type="button"
+            class="inline-tag-edit absolute bottom-2 left-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-indigo-700 shadow-md backdrop-blur-sm transition hover:bg-indigo-600 hover:text-white ${pending ? 'cursor-wait opacity-60' : ''}"
+            data-id="${escapeHtml(id)}"
+            aria-label="Modifica tags"
+            ${pending ? 'disabled' : ''}>
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M3 11.2V5a2 2 0 0 1 2-2h6.2a2 2 0 0 1 1.4.6l7.8 7.8a2 2 0 0 1 0 2.8l-6.2 6.2a2 2 0 0 1-2.8 0L3.6 12.6a2 2 0 0 1-.6-1.4Z" />
+      </svg>
+    </button>
+  `;
+}
+
+function getMobileTagEditorPosition(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 640;
+  const margin = 16;
+  const gap = 8;
+  const preferredHeight = Math.min(360, viewportHeight - margin * 2);
+  const spaceBelow = viewportHeight - rect.bottom - margin - gap;
+  const spaceAbove = rect.top - margin - gap;
+  const openBelow = spaceBelow >= Math.min(220, preferredHeight) || spaceBelow >= spaceAbove;
+  const top = openBelow
+    ? Math.min(rect.bottom + gap, viewportHeight - margin - 160)
+    : Math.max(margin, rect.top - preferredHeight - gap);
+  const maxHeight = Math.max(160, openBelow ? viewportHeight - top - margin : rect.top - margin - gap);
+
+  return {
+    top: Math.round(top),
+    maxHeight: Math.round(Math.min(preferredHeight, maxHeight))
+  };
+}
+
+function getInlineTagEditorStyle() {
+  if (window.matchMedia?.('(min-width: 768px)').matches || !activeTagEditorPosition) return '';
+  return `style="top: ${activeTagEditorPosition.top}px; bottom: auto; max-height: ${activeTagEditorPosition.maxHeight}px;"`;
+}
+
+function focusActiveTagInput() {
+  requestAnimationFrame(() => {
+    document.querySelector('.inline-tag-editor .inline-tag-input')?.focus();
+  });
+}
+
+function renderInlineTagEditor(item) {
+  const id = item.UUID;
+  if (!isTagMode || activeTagEditorId !== id || !isCurrentAdmin()) return '';
+
+  const currentTags = getItemTags(item);
+  const suggestions = tagCatalog
+    .filter(tag => !currentTags.includes(tag))
+    .slice(0, 8);
+
+  return `
+    <div class="inline-tag-editor fixed inset-x-4 z-50 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 text-left shadow-2xl md:absolute md:inset-x-3 md:top-12 md:max-h-80"
+         data-id="${escapeHtml(id)}"
+         ${getInlineTagEditorStyle()}>
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase text-gray-500">Tags</p>
+          <p class="truncate text-xs text-gray-600">${escapeHtml(item['Serial No'] || item.Item || id)}</p>
+        </div>
+        <button type="button" class="inline-tag-close rounded-full px-2 text-xl leading-none text-gray-400 hover:text-gray-800" aria-label="Chiudi editor tags">&times;</button>
+      </div>
+      <div class="mb-3 flex max-h-32 flex-wrap gap-1.5 overflow-y-auto md:max-h-24">
+        ${currentTags.length ? currentTags.map(tag => `
+          <button type="button"
+                  class="inline-tag-remove rounded-full bg-indigo-600 px-2 py-1 text-xs leading-none text-white hover:bg-red-600"
+                  data-id="${escapeHtml(id)}"
+                  data-tag="${escapeHtml(tag)}">
+            #${escapeHtml(displayTag(tag))} &times;
+          </button>
+        `).join('') : '<span class="text-xs text-gray-500">No tags</span>'}
+      </div>
+      <form class="inline-tag-form flex gap-2" data-id="${escapeHtml(id)}">
+        <input class="inline-tag-input min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs outline-none focus:border-indigo-500"
+               list="gridTagSuggestions"
+               placeholder="Aggiungi tag">
+        <button type="submit" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">Add</button>
+      </form>
+      ${suggestions.length ? `
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          ${suggestions.map(tag => `
+            <button type="button"
+                    class="inline-tag-add rounded-full bg-gray-100 px-2 py-1 text-xs leading-none text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
+                    data-id="${escapeHtml(id)}"
+                    data-tag="${escapeHtml(tag)}">
+              #${escapeHtml(displayTag(tag))}
+            </button>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function setupInlineTagging() {
+  ensureTagModeButton();
+  updateTagModeUI();
+
+  if (!document.getElementById('gridTagSuggestions')) {
+    const datalist = document.createElement('datalist');
+    datalist.id = 'gridTagSuggestions';
+    document.body.appendChild(datalist);
+  }
+  renderGridTagSuggestions();
+
+  if (document.body.dataset.inlineTaggingBound) return;
+
+  document.addEventListener('click', handleInlineTagClick);
+  document.addEventListener('submit', handleInlineTagSubmit);
+  window.addEventListener('san-gottardo-auth-changed', () => {
+    if (!isCurrentAdmin()) {
+      activeTagEditorId = null;
+      activeTagEditorPosition = null;
+    }
+    updateTagModeUI();
+    refreshGridPreservingDisplay();
+  });
+  document.body.dataset.inlineTaggingBound = 'true';
+}
+
+function ensureTagModeButton() {
+  if (document.getElementById('tagModeBtn')) return;
+
+  const adminBtn = document.getElementById('adminBtn');
+  if (!adminBtn?.parentElement) return;
+
+  const button = document.createElement('button');
+  button.id = 'tagModeBtn';
+  button.type = 'button';
+  button.className = 'hidden bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium transition shadow-md';
+  button.addEventListener('click', () => {
+    isTagMode = !isTagMode;
+    activeTagEditorId = null;
+    activeTagEditorPosition = null;
+    updateTagModeUI();
+    refreshGridPreservingDisplay();
+  });
+
+  adminBtn.parentElement.insertBefore(button, adminBtn);
+}
+
+function updateTagModeUI() {
+  const button = document.getElementById('tagModeBtn');
+  if (!button) return;
+
+  const canTag = isCurrentAdmin();
+  button.classList.toggle('hidden', !canTag);
+  button.classList.toggle('bg-indigo-600', canTag && isTagMode);
+  button.classList.toggle('hover:bg-indigo-700', canTag && isTagMode);
+  button.classList.toggle('bg-gray-700', !isTagMode);
+  button.classList.toggle('hover:bg-gray-800', !isTagMode);
+  button.textContent = isTagMode ? 'Tag mode on' : 'Tag mode';
+}
+
+function renderGridTagSuggestions() {
+  const datalist = document.getElementById('gridTagSuggestions');
+  if (!datalist) return;
+
+  const allTags = new Set(tagCatalog);
+  allItems.forEach(item => getItemTags(item).forEach(tag => allTags.add(tag)));
+  datalist.innerHTML = Array.from(allTags).sort()
+    .map(tag => `<option value="${escapeHtml(tag)}"></option>`)
+    .join('');
+}
+
+function refreshGridPreservingDisplay() {
+  const grid = document.getElementById('grid');
+  if (!grid) return;
+
+  const target = Math.max(displayed || PAGE_SIZE, PAGE_SIZE);
+  grid.innerHTML = '';
+  displayed = 0;
+
+  do {
+    const before = displayed;
+    renderGrid(true);
+    if (displayed === before) break;
+  } while (displayed < Math.min(target, filterItems().length));
+}
+
+async function ensureGridCatalogTag(tag) {
+  const normalized = normalizeTag(tag);
+  if (!normalized) return null;
+
+  const isNew = !tagCatalog.includes(normalized);
+  if (isNew) {
+    tagCatalog = normalizeTags([...tagCatalog, normalized]);
+    renderGridTagSuggestions();
+    renderTagCloud();
+  }
+
+  if (isNew) {
+    try {
+      await db.ref(`status/__tagCatalog/${normalized}`).set(true);
+    } catch (err) {
+      tagCatalog = tagCatalog.filter(existing => existing !== normalized);
+      renderGridTagSuggestions();
+      renderTagCloud();
+      throw err;
+    }
+  }
+
+  return normalized;
+}
+
+async function writeItemStatusTags(id, tags) {
+  const ref = db.ref(`status/${id}`);
+  const snapshot = await ref.once('value').catch(() => null);
+  const current = snapshot?.val?.() || {};
+
+  if (tags.length) current.tags = tags;
+  else delete current.tags;
+
+  if (Object.keys(current).length) await ref.set(current);
+  else await ref.remove();
+}
+
+async function saveGridItemTags(id, tags, pendingKey) {
+  if (!window.requireFirebaseAdminAuth?.() || pendingTagWrites.has(pendingKey)) return;
+
+  const item = allItems.find(candidate => candidate.UUID === id);
+  if (!item) return;
+
+  const previous = getItemTags(item);
+  const normalized = normalizeTags(tags);
+  item.Tags = normalized;
+  itemTags[id] = normalized;
+  pendingTagWrites.add(pendingKey);
+  renderGridTagSuggestions();
+  refreshGridPreservingDisplay();
+  renderTagCloud();
+
+  try {
+    await writeItemStatusTags(id, normalized);
+  } catch (err) {
+    item.Tags = previous;
+    itemTags[id] = previous;
+    console.warn('Tag save failed', err);
+    alert('Tag save failed. Please check Firebase permissions and try again.');
+  } finally {
+    pendingTagWrites.delete(pendingKey);
+    renderGridTagSuggestions();
+    refreshGridPreservingDisplay();
+    renderTagCloud();
+  }
+}
+
+async function addGridTag(id, rawTag) {
+  const item = allItems.find(candidate => candidate.UUID === id);
+  if (!item) return;
+
+  const tag = await ensureGridCatalogTag(rawTag);
+  if (!tag) return;
+
+  await saveGridItemTags(id, [...getItemTags(item), tag], `${id}:${tag}`);
+}
+
+async function removeGridTag(id, tag) {
+  const item = allItems.find(candidate => candidate.UUID === id);
+  if (!item) return;
+
+  const normalized = normalizeTag(tag);
+  await saveGridItemTags(
+    id,
+    getItemTags(item).filter(existing => existing !== normalized),
+    `${id}:${normalized}`
+  );
+}
+
+function handleInlineTagClick(event) {
+  if (event.target.closest('#tagModeBtn')) return;
+
+  const tagEditor = event.target.closest('.inline-tag-editor');
+  const editButton = event.target.closest('.inline-tag-edit');
+  const closeButton = event.target.closest('.inline-tag-close');
+  const addButton = event.target.closest('.inline-tag-add');
+  const removeButton = event.target.closest('.inline-tag-remove');
+
+  if (editButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    const isClosing = activeTagEditorId === editButton.dataset.id;
+    const nextId = editButton.dataset.id;
+    const nextPosition = getMobileTagEditorPosition(editButton.closest('[data-uuid]') || editButton);
+
+    activeTagEditorId = null;
+    activeTagEditorPosition = null;
+    refreshGridPreservingDisplay();
+
+    if (!isClosing) {
+      requestAnimationFrame(() => {
+        activeTagEditorId = nextId;
+        activeTagEditorPosition = nextPosition;
+        refreshGridPreservingDisplay();
+        focusActiveTagInput();
+      });
+    }
+    return;
+  }
+
+  if (closeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    activeTagEditorId = null;
+    activeTagEditorPosition = null;
+    refreshGridPreservingDisplay();
+    return;
+  }
+
+  if (addButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    addGridTag(addButton.dataset.id, addButton.dataset.tag);
+    return;
+  }
+
+  if (removeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    removeGridTag(removeButton.dataset.id, removeButton.dataset.tag);
+    return;
+  }
+
+  if (tagEditor) event.stopPropagation();
+}
+
+function handleInlineTagSubmit(event) {
+  if (!event.target.classList.contains('inline-tag-form')) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const input = event.target.querySelector('.inline-tag-input');
+  const id = event.target.dataset.id;
+  const value = input?.value || '';
+  if (input) input.value = '';
+  addGridTag(id, value);
 }
 
 // Firebase config
@@ -890,7 +1242,8 @@ function renderGrid(loadMore = false) {
   for (let i = start; i < end; i++) {
     const item = filtered[i];
     const div = document.createElement('div');
-    div.className = 'bg-white rounded overflow-hidden shadow cursor-pointer hover:shadow-lg transition-shadow relative';
+    const isEditingTags = isTagMode && activeTagEditorId === item.UUID;
+    div.className = `bg-white rounded ${isEditingTags ? 'overflow-visible z-30' : 'overflow-hidden'} shadow cursor-pointer hover:shadow-lg transition-shadow relative`;
 
     div.dataset.uuid = item.UUID;
 
@@ -920,6 +1273,8 @@ function renderGrid(loadMore = false) {
                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
         </svg>
       </button>` : '';
+    const tagEditButton = renderTagEditButton(item);
+    const tagEditor = renderInlineTagEditor(item);
 
     const statusHtml = isSold
       ? `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`
@@ -935,7 +1290,9 @@ function renderGrid(loadMore = false) {
         ${photoCountBadge}
         ${heartIcon}
         ${editButton}
+        ${tagEditButton}
       </div>
+      ${tagEditor}
       <div class="p-3 flex flex-col justify-between bg-white" style="min-height: 8rem;">
         <div>
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">${item.Item}</h3>
@@ -951,7 +1308,7 @@ function renderGrid(loadMore = false) {
     `;
 
     div.onclick = (e) => {
-      if (!e.target.closest('button')) openModal(item);
+      if (!e.target.closest('button, .inline-tag-editor')) openModal(item);
     };
     fragment.appendChild(div);
   }
