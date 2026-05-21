@@ -121,6 +121,12 @@
                     </form>
                     <input id="positionSearch" class="flex-1 min-w-[220px] border rounded-lg px-3 py-2"
                         placeholder="Cerca oggetto, ID o scatola">
+                    <select id="positionStatusFilter" class="border rounded-lg px-3 py-2">
+                        <option value="">Tutti gli stati</option>
+                        <option value="Disponibile">Disponibile</option>
+                        <option value="Venduto">Venduto</option>
+                        <option value="Consegnato">Consegnato</option>
+                    </select>
                     <span id="positionSummary" class="text-sm text-gray-500"></span>
                 </div>
             </section>
@@ -859,9 +865,22 @@
             ].join(' ').toLowerCase().includes(query);
         }
 
+        function getPositionItemStatus(item) {
+            return String(window.allStatus?.[item.UUID]?.stato || item.Status || '').trim();
+        }
+
+        function positionStatusMatches(item) {
+            const statusFilter = document.getElementById('positionStatusFilter')?.value || '';
+            if (!statusFilter) return true;
+
+            const status = getPositionItemStatus(item);
+            if (statusFilter === 'Disponibile') return status !== 'Venduto' && status !== 'Consegnato';
+            return status === statusFilter;
+        }
+
         function renderPositionItem(item) {
             const statusInfo = window.allStatus?.[item.UUID] || {};
-            const currentStatus = statusInfo.stato || item.Status;
+            const currentStatus = getPositionItemStatus(item);
             const positionStatusClass = currentStatus === 'Venduto'
                 ? 'position-item-sold'
                 : currentStatus === 'Consegnato'
@@ -909,7 +928,7 @@
         function renderPositionBox(box) {
             const query = (document.getElementById('positionSearch')?.value || '').trim().toLowerCase();
             const items = allItems
-                .filter(item => getItemBox(item) === box && positionMatches(item, query))
+                .filter(item => getItemBox(item) === box && positionMatches(item, query) && positionStatusMatches(item))
                 .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
             const locationOptions = allKnownLocations().map(location =>
                 `<option value="${escapeHtml(location)}" ${getBoxLocation(box) === location ? 'selected' : ''}>${escapeHtml(location)}</option>`
@@ -948,7 +967,7 @@
         function renderLocationCard(location) {
             const boxes = allKnownBoxes().filter(box => getBoxLocation(box) === location);
             const looseItems = allItems
-                .filter(item => getLooseItemLocation(item) === location && positionMatches(item, (document.getElementById('positionSearch')?.value || '').trim().toLowerCase()))
+                .filter(item => getLooseItemLocation(item) === location && positionMatches(item, (document.getElementById('positionSearch')?.value || '').trim().toLowerCase()) && positionStatusMatches(item))
                 .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
 
             return `
@@ -989,7 +1008,7 @@
             const unassignedBoxes = allKnownBoxes().filter(box => !getBoxLocation(box));
             const query = (document.getElementById('positionSearch')?.value || '').trim().toLowerCase();
             const unassignedItems = allItems
-                .filter(item => !getItemBox(item) && !getLooseItemLocation(item) && positionMatches(item, query))
+                .filter(item => !getItemBox(item) && !getLooseItemLocation(item) && positionMatches(item, query) && positionStatusMatches(item))
                 .sort((a, b) => String(a['Serial No'] || '').localeCompare(String(b['Serial No'] || '')));
 
             grid.innerHTML = `
@@ -1208,6 +1227,7 @@
         });
 
         document.getElementById('positionSearch')?.addEventListener('input', renderPositionsAdmin);
+        document.getElementById('positionStatusFilter')?.addEventListener('change', renderPositionsAdmin);
 
         document.addEventListener('change', async (event) => {
             const boxSelect = event.target.closest('[data-box-location]');
