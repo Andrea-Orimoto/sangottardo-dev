@@ -891,6 +891,9 @@
                 : currentStatus === 'Consegnato'
                     ? '<span class="mt-1 inline-flex w-fit rounded-full bg-red-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Consegnato</span>'
                     : '';
+            const positionSoldTo = (currentStatus === 'Venduto' || currentStatus === 'Consegnato') && statusInfo.vendutoA
+                ? `<div class="mt-1 truncate text-xs text-gray-600">Venduto a: <strong>${escapeHtml(statusInfo.vendutoA)}</strong></div>`
+                : '';
             const currentBox = getItemBox(item);
             const currentLooseLocation = getLooseItemLocation(item);
             const destinationValue = currentBox ? `box:${currentBox}` : (currentLooseLocation ? `loose:${currentLooseLocation}` : '');
@@ -912,6 +915,7 @@
                         <div class="font-medium truncate">${escapeHtml(item.Item)}</div>
                         <div class="text-xs text-gray-500">${escapeHtml(item['Serial No'] || '—')}</div>
                         ${positionStatusBadge}
+                        ${positionSoldTo}
                     </div>
                     <button class="position-clear text-xs text-gray-400 hover:text-red-600"
                             data-clear-item="${escapeHtml(item.UUID)}">Rimuovi</button>
