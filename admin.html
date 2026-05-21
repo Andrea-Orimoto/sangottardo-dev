@@ -1087,7 +1087,7 @@
             const item = allItems.find(i => i.UUID === id);
             const tags = new Set(getItemTags(item));
             tags.has(tag) ? tags.delete(tag) : tags.add(tag);
-            await saveItemTags(id, [...tags], pendingKey);
+            await saveItemTags(id, [...tags], pendingKey, { keepInReview: true });
         });
 
         document.addEventListener('submit', async (event) => {
