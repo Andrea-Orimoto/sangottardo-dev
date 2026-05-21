@@ -862,7 +862,11 @@
         function renderPositionItem(item) {
             const statusInfo = window.allStatus?.[item.UUID] || {};
             const currentStatus = statusInfo.stato || item.Status;
-            const isSold = currentStatus === 'Venduto' || currentStatus === 'Consegnato';
+            const positionStatusClass = currentStatus === 'Venduto'
+                ? 'position-item-sold'
+                : currentStatus === 'Consegnato'
+                    ? 'position-item-delivered'
+                    : '';
             const positionStatusBadge = currentStatus === 'Venduto'
                 ? '<span class="mt-1 inline-flex w-fit rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">Venduto</span>'
                 : currentStatus === 'Consegnato'
@@ -880,7 +884,7 @@
 
             return `
                 <div draggable="true" data-drag-type="item" data-id="${escapeHtml(item.UUID)}"
-                     class="position-draggable ${isSold ? 'position-item-sold' : ''} rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
+                     class="position-draggable ${positionStatusClass} rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
                     <div class="flex items-center gap-2">
                     <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.jpg')}"
                          class="w-10 h-10 rounded object-cover bg-gray-100"
