@@ -377,7 +377,7 @@ window.reloadStatusForCurrentUser = async function () {
 };
 
 function getAdminSoldDetailsHtml(item) {
-  if (!isCurrentAdmin() || (item.Status || '').trim() !== 'Venduto') return '';
+  if (!isCurrentAdmin() || !isUnavailableStatus((item.Status || '').trim())) return '';
 
   const details = window.adminStatusDetails?.[item.UUID] || {};
   const soldTo = details.vendutoA;
@@ -493,6 +493,34 @@ function renderInlineTagEditor(item) {
       ` : ''}
     </div>
   `;
+}
+
+function getItemStatus(item) {
+  return (item?.Status || '').trim();
+}
+
+function isUnavailableStatus(status) {
+  return status === 'Venduto' || status === 'Consegnato';
+}
+
+function matchesStatusFilter(status, statusFilter) {
+  if (!statusFilter) return true;
+  if (statusFilter === 'Disponibile') return !isUnavailableStatus(status);
+  return status === statusFilter;
+}
+
+function renderStatusBadge(item) {
+  const status = getItemStatus(item);
+
+  if (status === 'Venduto') {
+    return `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`;
+  }
+
+  if (status === 'Consegnato') {
+    return `<span class="bg-red-700 text-white text-xs px-2 py-1 rounded">Consegnato</span>${getAdminSoldDetailsHtml(item)}`;
+  }
+
+  return '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
 }
 
 function setupInlineTagging() {
@@ -947,10 +975,7 @@ function filterItems() {
     const matchSearch = !q || searchText.includes(q);
     const matchTags = !selectedTags.size || tags.includes([...selectedTags][0]);
 
-    const isSold = (item.Status || '').trim() === 'Venduto';
-    const matchStatus = !statusFilter ||
-      (statusFilter === 'Disponibile' && !isSold) ||
-      (statusFilter === 'Venduto' && isSold);
+    const matchStatus = matchesStatusFilter(getItemStatus(item), statusFilter);
 
     return matchSearch && matchTags && matchStatus;
   });
@@ -965,7 +990,7 @@ function setupCategoryFiltersLegacy() {
     statusSel = document.createElement('select');
     statusSel.id = 'statusFilter';
     statusSel.className = 'ml-2 p-2 border rounded';
-    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
+    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option><option value="Consegnato">Consegnato</option>`;
     document.querySelector('#filters').appendChild(statusSel);
   }
 
@@ -1072,7 +1097,7 @@ function setupFilters() {
     statusSel = document.createElement('select');
     statusSel.id = 'statusFilter';
     statusSel.className = 'p-2 border rounded';
-    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option>`;
+    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option><option value="Consegnato">Consegnato</option>`;
   }
 
   const clearBtn = document.getElementById('clearFilters');
@@ -1129,10 +1154,7 @@ function renderTagCloud() {
   const counts = {};
 
   allItems.forEach(item => {
-    const isSold = (item.Status || '').trim() === 'Venduto';
-    const matchStatus = !statusFilter ||
-      (statusFilter === 'Disponibile' && !isSold) ||
-      (statusFilter === 'Venduto' && isSold);
+    const matchStatus = matchesStatusFilter(getItemStatus(item), statusFilter);
     const tags = getItemTags(item);
     const box = getItemBox(item);
     const adminPositionTerms = isCurrentAdmin() ? [box, getBoxLocation(box), getLooseItemLocation(item)] : [];
@@ -1224,7 +1246,8 @@ function renderGrid(loadMore = false) {
     const tag = selectedTags.size ? `#${displayTag([...selectedTags][0])}` : 'tutti i tag';
     const status = document.getElementById('statusFilter')?.value || 'tutti gli stati';
     const statusText = status === 'Disponibile' ? 'disponibili' :
-      status === 'Venduto' ? 'venduti' : status;
+      status === 'Venduto' ? 'venduti' :
+      status === 'Consegnato' ? 'consegnati' : status;
 
     const message = document.createElement('div');
     message.className = 'col-span-full text-center py-12 text-gray-500';
@@ -1247,7 +1270,6 @@ function renderGrid(loadMore = false) {
 
     div.dataset.uuid = item.UUID;
 
-    const isSold = (item.Status || '').trim() === 'Venduto';
     const itemTagsHtml = getItemTags(item).slice(0, 3).map(tag =>
       `<span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">#${escapeHtml(displayTag(tag))}</span>`
     ).join('');
@@ -1276,9 +1298,7 @@ function renderGrid(loadMore = false) {
     const tagEditButton = renderTagEditButton(item);
     const tagEditor = renderInlineTagEditor(item);
 
-    const statusHtml = isSold
-      ? `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Venduto</span>${getAdminSoldDetailsHtml(item)}`
-      : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
+    const statusHtml = renderStatusBadge(item);
     const positionLine = getAdminPositionLine(item);
     const positionHtml = positionLine
       ? `<p class="text-xs text-gray-500">${positionLine}</p>`

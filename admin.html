@@ -414,8 +414,12 @@
                             <span class="badge-venduto">VENDUTO</span>
                             ${renderSoldDetails(statusInfo)}
                         </div>`;
-                        } else if (currentStatus === 'Prenotato') {
-                            badge = `<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>`;
+                        } else if (currentStatus === 'Consegnato') {
+                            badge = `
+                        <div class="text-right">
+                            <span class="badge-consegnato">CONSEGNATO</span>
+                            ${renderSoldDetails(statusInfo)}
+                        </div>`;
                         } else {
                             badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                         }
@@ -544,8 +548,12 @@
                             <span class="badge-venduto">VENDUTO</span>
                             ${renderSoldDetails(statusInfo)}
                         </div>`;
-                } else if (currentStatus === 'Prenotato') {
-                    badge = `<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>`;
+                } else if (currentStatus === 'Consegnato') {
+                    badge = `
+                        <div class="text-right">
+                            <span class="badge-consegnato">CONSEGNATO</span>
+                            ${renderSoldDetails(statusInfo)}
+                        </div>`;
                 } else {
                     badge = `<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>`;
                 }
@@ -853,7 +861,13 @@
 
         function renderPositionItem(item) {
             const statusInfo = window.allStatus?.[item.UUID] || {};
-            const isSold = (statusInfo.stato || item.Status) === 'Venduto';
+            const currentStatus = statusInfo.stato || item.Status;
+            const isSold = currentStatus === 'Venduto' || currentStatus === 'Consegnato';
+            const positionStatusBadge = currentStatus === 'Venduto'
+                ? '<span class="mt-1 inline-flex w-fit rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">Venduto</span>'
+                : currentStatus === 'Consegnato'
+                    ? '<span class="mt-1 inline-flex w-fit rounded-full bg-red-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Consegnato</span>'
+                    : '';
             const currentBox = getItemBox(item);
             const currentLooseLocation = getLooseItemLocation(item);
             const destinationValue = currentBox ? `box:${currentBox}` : (currentLooseLocation ? `loose:${currentLooseLocation}` : '');
@@ -874,6 +888,7 @@
                     <div class="min-w-0 flex-1">
                         <div class="font-medium truncate">${escapeHtml(item.Item)}</div>
                         <div class="text-xs text-gray-500">${escapeHtml(item['Serial No'] || '—')}</div>
+                        ${positionStatusBadge}
                     </div>
                     <button class="position-clear text-xs text-gray-400 hover:text-red-600"
                             data-clear-item="${escapeHtml(item.UUID)}">Rimuovi</button>

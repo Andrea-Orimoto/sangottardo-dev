@@ -208,18 +208,6 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.badge-prenotato {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: white;
-    background-color: #f97316;
-    /* orange-500 */
-    border-radius: 9999px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
 .badge-venduto {
     display: inline-block;
     padding: 0.25rem 0.75rem;
@@ -228,6 +216,18 @@
     color: white;
     background-color: #ef4444;
     /* red-500 */
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.badge-consegnato {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    background-color: #b91c1c;
+    /* red-700 */
     border-radius: 9999px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
@@ -272,7 +272,7 @@
 }
 
 .badge-venduto,
-.badge-prenotato,
+.badge-consegnato,
 .badge-disponibile {
   display: block;
   width: 100%;

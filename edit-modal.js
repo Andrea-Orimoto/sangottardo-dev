@@ -36,6 +36,7 @@ if (!window.editModalInitialized) {
           <select id="editStatus" class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
             <option value="">Disponibile</option>
             <option value="Venduto">Venduto</option>
+            <option value="Consegnato">Consegnato</option>
           </select>
         </div>
       </div>
@@ -92,16 +93,17 @@ if (!window.editModalInitialized) {
     document.getElementById('editModalID').textContent = item['Serial No'] || '—';
 
     // Campi — usa i dati FRESCHI
+    const currentStatus = statusInfo.stato || item.Status || '';
     document.getElementById('editPrice').value = statusInfo.prezzo || '';
-    document.getElementById('editStatus').value = item.Status || '';
+    document.getElementById('editStatus').value = currentStatus;
     document.getElementById('editBuyer').value = statusInfo.vendutoA || '';
     document.getElementById('editDate').value = statusInfo.data || '';
 
     const soldFields = document.getElementById('soldFields');
-    soldFields.classList.toggle('hidden', (item.Status || '') !== 'Venduto');
+    soldFields.classList.toggle('hidden', !hasSaleDetails(currentStatus));
 
     document.getElementById('editStatus').onchange = function () {
-      soldFields.classList.toggle('hidden', this.value !== 'Venduto');
+      soldFields.classList.toggle('hidden', !hasSaleDetails(this.value));
     };
 
     document.getElementById('editModal').classList.remove('hidden');
@@ -142,6 +144,10 @@ if (!window.editModalInitialized) {
     }[char]));
   }
 
+  function hasSaleDetails(status) {
+    return status === 'Venduto' || status === 'Consegnato';
+  }
+
   // SALVATAGGIO CON TOAST — VERSIONE FINALE
   window.saveObjectStatus = async function () {
     if (!window.currentEditingUUID) return;
@@ -151,12 +157,13 @@ if (!window.editModalInitialized) {
     const prezzo = document.getElementById('editPrice').value.trim();
     const buyer = document.getElementById('editBuyer').value.trim();
     const date = document.getElementById('editDate').value;
+    const shouldSaveSaleDetails = hasSaleDetails(status);
 
     const payload = {
       stato: status || null,
       prezzo: prezzo || null,
-      vendutoA: (status === 'Venduto' && buyer) ? buyer : null,
-      data: (status === 'Venduto' && date) ? date : null
+      vendutoA: (shouldSaveSaleDetails && buyer) ? buyer : null,
+      data: (shouldSaveSaleDetails && date) ? date : null
     };
 
     try {
@@ -173,7 +180,7 @@ if (!window.editModalInitialized) {
         window.allStatus[window.currentEditingUUID] = currentStatus;
       }
       if (window.adminStatusDetails) {
-        if (status === 'Venduto' && (buyer || date)) {
+        if (shouldSaveSaleDetails && (buyer || date)) {
           window.adminStatusDetails[window.currentEditingUUID] = {
             vendutoA: buyer || '',
             data: date || ''
@@ -199,7 +206,17 @@ if (!window.editModalInitialized) {
                 </div>
               ` : ''}`;
           }
-          else if (status === 'Prenotato') html = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Prenotato</span>';
+          else if (status === 'Consegnato') {
+            html = `
+              <span class="bg-red-700 text-white text-xs px-2 py-1 rounded">Consegnato</span>
+              ${buyer || date ? `
+                <div class="text-xs text-gray-600 leading-tight mt-1">
+                  ${buyer ? `a <strong>${escapeHtml(buyer)}</strong>` : ''}
+                  ${buyer && date ? '<br>' : ''}
+                  ${date ? `il ${new Date(date).toLocaleDateString('it-IT')}` : ''}
+                </div>
+              ` : ''}`;
+          }
           else html = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Disponibile</span>';
           indexBadge.innerHTML = html;
         }
@@ -224,8 +241,18 @@ if (!window.editModalInitialized) {
                                 </div>
                             ` : ''}
                         </div>`;
-          } else if (status === 'Prenotato') {
-            html = '<div class="text-right"><span class="badge-prenotato">PRENOTATO</span></div>';
+          } else if (status === 'Consegnato') {
+            html = `
+                        <div class="text-right">
+                            <span class="badge-consegnato">CONSEGNATO</span>
+                            ${buyer || date ? `
+                                <div class="text-xs text-gray-600 mt-1 leading-tight">
+                                    ${buyer ? `a <strong>${buyer}</strong>` : ''}
+                                    ${buyer && date ? '<br>' : ''}
+                                    ${date ? `il ${new Date(date).toLocaleDateString('it-IT')}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>`;
           } else {
             html = '<div class="text-right"><span class="badge-disponibile">DISPONIBILE</span></div>';
           }
