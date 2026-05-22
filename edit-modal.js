@@ -10,7 +10,7 @@ if (!window.editModalInitialized) {
     <!-- Header con foto, nome e ID -->
     <div class="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-6 sm:p-8">
       <div class="flex items-start gap-4 sm:gap-6">
-        <img id="editModalPhoto" src="images/placeholder.jpg" alt="Oggetto" 
+        <img id="editModalPhoto" src="images/placeholder.svg" alt="Oggetto" 
              class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl shadow-lg border-4 border-white/30 flex-shrink-0">
         <div class="flex-1 pt-1 sm:pt-2">
           <h2 id="editModalTitle" class="text-2xl sm:text-3xl font-bold leading-tight">
@@ -88,7 +88,7 @@ if (!window.editModalInitialized) {
 
     // Header
     document.getElementById('editModalPhoto').src =
-      item.Photos?.[0] ? `images/${item.Photos[0]}` : 'images/placeholder.jpg';
+      item.Photos?.[0] ? `images/${item.Photos[0]}` : 'images/placeholder.svg';
     document.getElementById('editModalTitle').textContent = item.Item;
     document.getElementById('editModalID').textContent = item['Serial No'] || '—';
 

@@ -23,7 +23,6 @@ window.looseItemLocations = {};
 let selectedTags = new Set();
 let tagCatalog = [];
 let itemTags = {};
-let isTagMode = true;
 let activeTagEditorId = null;
 let activeTagEditorPosition = null;
 let pendingTagWrites = new Set();
@@ -394,7 +393,7 @@ function getAdminSoldDetailsHtml(item) {
 }
 
 function renderTagEditButton(item) {
-  if (!isTagMode || !isCurrentAdmin()) return '';
+  if (!isCurrentAdmin()) return '';
 
   const id = item.UUID;
   const pending = Array.from(pendingTagWrites).some(key => key.startsWith(`${id}:`));
@@ -445,7 +444,7 @@ function focusActiveTagInput() {
 
 function renderInlineTagEditor(item) {
   const id = item.UUID;
-  if (!isTagMode || activeTagEditorId !== id || !isCurrentAdmin()) return '';
+  if (activeTagEditorId !== id || !isCurrentAdmin()) return '';
 
   const currentTags = getItemTags(item);
   const suggestions = tagCatalog
@@ -524,9 +523,6 @@ function renderStatusBadge(item) {
 }
 
 function setupInlineTagging() {
-  ensureTagModeButton();
-  updateTagModeUI();
-
   if (!document.getElementById('gridTagSuggestions')) {
     const datalist = document.createElement('datalist');
     datalist.id = 'gridTagSuggestions';
@@ -543,44 +539,9 @@ function setupInlineTagging() {
       activeTagEditorId = null;
       activeTagEditorPosition = null;
     }
-    updateTagModeUI();
     refreshGridPreservingDisplay();
   });
   document.body.dataset.inlineTaggingBound = 'true';
-}
-
-function ensureTagModeButton() {
-  if (document.getElementById('tagModeBtn')) return;
-
-  const adminBtn = document.getElementById('adminBtn');
-  if (!adminBtn?.parentElement) return;
-
-  const button = document.createElement('button');
-  button.id = 'tagModeBtn';
-  button.type = 'button';
-  button.className = 'hidden bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium transition shadow-md';
-  button.addEventListener('click', () => {
-    isTagMode = !isTagMode;
-    activeTagEditorId = null;
-    activeTagEditorPosition = null;
-    updateTagModeUI();
-    refreshGridPreservingDisplay();
-  });
-
-  adminBtn.parentElement.insertBefore(button, adminBtn);
-}
-
-function updateTagModeUI() {
-  const button = document.getElementById('tagModeBtn');
-  if (!button) return;
-
-  const canTag = isCurrentAdmin();
-  button.classList.toggle('hidden', !canTag);
-  button.classList.toggle('bg-indigo-600', canTag && isTagMode);
-  button.classList.toggle('hover:bg-indigo-700', canTag && isTagMode);
-  button.classList.toggle('bg-gray-700', !isTagMode);
-  button.classList.toggle('hover:bg-gray-800', !isTagMode);
-  button.textContent = isTagMode ? 'Tag mode on' : 'Tag mode';
 }
 
 function renderGridTagSuggestions() {
@@ -699,8 +660,6 @@ async function removeGridTag(id, tag) {
 }
 
 function handleInlineTagClick(event) {
-  if (event.target.closest('#tagModeBtn')) return;
-
   const tagEditor = event.target.closest('.inline-tag-editor');
   const editButton = event.target.closest('.inline-tag-edit');
   const closeButton = event.target.closest('.inline-tag-close');
@@ -937,7 +896,7 @@ function renderPreferitiSidebar() {
     });
 
     div.innerHTML = `
-      <img src="images/${item.Photos[0] || 'placeholder.jpg'}" class="w-12 h-12 object-cover rounded" onerror="this.src='images/placeholder.jpg'">
+      <img src="images/${item.Photos[0] || 'placeholder.svg'}" class="w-12 h-12 object-cover rounded" onerror="this.src='images/placeholder.svg'">
       <div class="flex-1">
         <span class="text-sm font-medium truncate block">${item.Item}</span>
         <span class="text-xs text-gray-500">Aggiunto il ${dateStr}</span>
@@ -1265,7 +1224,7 @@ function renderGrid(loadMore = false) {
   for (let i = start; i < end; i++) {
     const item = filtered[i];
     const div = document.createElement('div');
-    const isEditingTags = isTagMode && activeTagEditorId === item.UUID;
+    const isEditingTags = activeTagEditorId === item.UUID;
     div.className = `bg-white rounded ${isEditingTags ? 'overflow-visible z-30' : 'overflow-hidden'} shadow cursor-pointer hover:shadow-lg transition-shadow relative`;
 
     div.dataset.uuid = item.UUID;
@@ -1306,7 +1265,7 @@ function renderGrid(loadMore = false) {
 
     div.innerHTML = `
       <div class="bg-gray-100 flex items-center justify-center rounded-t-lg h-48 relative overflow-hidden">
-        <img src="images/${item.Photos[0]}" alt="${item.Item}" class="max-h-full max-w-full object-contain transition-transform hover:scale-105" onerror="this.src='images/placeholder.jpg'">
+        <img src="images/${item.Photos[0]}" alt="${item.Item}" class="max-h-full max-w-full object-contain transition-transform hover:scale-105" onerror="this.src='images/placeholder.svg'">
         ${photoCountBadge}
         ${heartIcon}
         ${editButton}
@@ -1375,7 +1334,7 @@ function openModal(item) {
   <div class="swiper-zoom-container">
     <img src="images/${src}" alt="${item.Item} - ${idx + 1}" 
          class="max-w-full max-h-full object-contain" 
-         onerror="this.src='images/placeholder.jpg'">
+         onerror="this.src='images/placeholder.svg'">
   </div>
 `; wrapper.appendChild(slide);
   });

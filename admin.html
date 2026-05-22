@@ -27,14 +27,24 @@
                 <h1 class="text-3xl font-bold">Admin</h1>
             </div>
             <div class="flex items-center gap-4">
-                <div id="userInfo" class="hidden flex items-center gap-3">
-                    <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indig o-600" src="" alt="">
+                <div id="userInfo" class="relative hidden flex items-center">
+                    <button id="userMenuButton" type="button"
+                        class="rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        aria-haspopup="dialog" aria-expanded="false" aria-label="Account menu">
+                        <img id="userPhoto" class="w-10 h-10 rounded-full border-2 border-indigo-600" src="" alt="User">
+                    </button>
+                    <div id="userMenuDialog"
+                        class="user-menu-dialog hidden absolute right-0 top-full mt-3 w-72 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-50"
+                        role="dialog" aria-label="Account">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Signed in as</div>
+                        <div id="userEmail" class="user-menu-email text-sm font-medium text-gray-900 mb-4"></div>
+                        <button id="logoutBtn"
+                            class="w-full bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded transition">
+                            Logout
+                        </button>
+                    </div>
                 </div>
                 <div id="googleSignInButton" class="hidden"></div>
-                <button id="logoutBtn"
-                    class="hidden bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded transition">
-                    Logout
-                </button>
             </div>
         </header>
 
@@ -194,11 +204,6 @@
                 setTimeout(waitForUser, 200);
             }
         }
-
-        document.getElementById('logoutBtn')?.addEventListener('click', () => {
-            window.currentUser = null;
-            location.reload();
-        });
 
         document.getElementById('tab-users').onclick = () => switchTab('users');
         document.getElementById('tab-items').onclick = () => switchTab('items');
@@ -450,9 +455,9 @@
                     <div class="relative flex items-start gap-6 py-5 border-b last:border-0" data-uuid="${d.id}">
                         <div class="flex-shrink-0 w-24">
                             <div class="relative">
-                                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
+                                <img src="images/${item.Photos?.[0] || 'placeholder.svg'}" 
                                      class="w-24 h-24 object-cover rounded-2xl shadow-xl" 
-                                     onerror="this.src='images/placeholder.jpg'">
+                                     onerror="this.src='images/placeholder.svg'">
                                 ${editButton}
                             </div>
                             <div class="mt-3 text-center">
@@ -594,9 +599,9 @@
                     <div class="relative flex items-start gap-6 py-5 border-b border-gray-100 last:border-0" data-uuid="${uuid}">
                         <div class="flex-shrink-0 w-20">
                             <div class="relative">
-                                <img src="images/${item.Photos?.[0] || 'placeholder.jpg'}" 
+                                <img src="images/${item.Photos?.[0] || 'placeholder.svg'}" 
                                      class="w-20 h-20 object-cover rounded-2xl shadow-lg" 
-                                     onerror="this.src='images/placeholder.jpg'">
+                                     onerror="this.src='images/placeholder.svg'">
                                 ${editButton}
                             </div>
                             <div class="mt-3 text-center">
@@ -734,9 +739,9 @@
             return `
                 <article class="bg-white rounded-2xl shadow-lg overflow-hidden" data-tag-card-id="${escapeHtml(id)}">
                     <div class="grid grid-cols-[104px_1fr] gap-4 p-4">
-                        <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.jpg')}"
+                        <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.svg')}"
                              class="w-24 h-24 object-cover rounded-xl bg-gray-100"
-                             onerror="this.src='images/placeholder.jpg'">
+                             onerror="this.src='images/placeholder.svg'">
                         <div class="min-w-0">
                             <div class="font-bold leading-tight">${escapeHtml(item.Item)}</div>
                             <div class="text-sm text-gray-600 mt-1">
@@ -908,9 +913,9 @@
                 <div draggable="true" data-drag-type="item" data-id="${escapeHtml(item.UUID)}"
                      class="position-draggable ${positionStatusClass} rounded-lg border border-gray-200 bg-white p-2 text-sm cursor-move">
                     <div class="flex items-center gap-2">
-                    <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.jpg')}"
+                    <img src="images/${escapeHtml(item.Photos?.[0] || 'placeholder.svg')}"
                          class="w-10 h-10 rounded object-cover bg-gray-100"
-                         onerror="this.src='images/placeholder.jpg'">
+                         onerror="this.src='images/placeholder.svg'">
                     <div class="min-w-0 flex-1">
                         <div class="font-medium truncate">${escapeHtml(item.Item)}</div>
                         <div class="text-xs text-gray-500">${escapeHtml(item['Serial No'] || '—')}</div>

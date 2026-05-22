@@ -167,6 +167,28 @@
     display: none !important;
 }
 
+.user-menu-dialog {
+    max-width: calc(100vw - 2rem);
+}
+
+.user-menu-email {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+    .user-menu-dialog {
+        position: fixed;
+        top: 4.5rem;
+        right: 1rem;
+        left: 1rem;
+        width: auto;
+        max-width: none;
+    }
+}
+
 #preferitiOverlay.hidden {
     display: none;
 }

@@ -64,6 +64,24 @@ function renderGoogleButton(signInDiv, text = 'signin_with') {
     });
 }
 
+function closeUserMenu() {
+    const userMenuDialog = document.getElementById('userMenuDialog');
+    const userMenuButton = document.getElementById('userMenuButton');
+
+    userMenuDialog?.classList.add('hidden');
+    userMenuButton?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleUserMenu() {
+    const userMenuDialog = document.getElementById('userMenuDialog');
+    const userMenuButton = document.getElementById('userMenuButton');
+    if (!userMenuDialog || !userMenuButton) return;
+
+    const isOpen = !userMenuDialog.classList.contains('hidden');
+    userMenuDialog.classList.toggle('hidden', isOpen);
+    userMenuButton.setAttribute('aria-expanded', String(!isOpen));
+}
+
 function handleCredentialResponse(response) {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
     window.currentUser = {
@@ -114,6 +132,7 @@ window.updateAuthUI = function () {
     const fbUser = firebaseUser();
     const userInfo = document.getElementById('userInfo');
     const userPhoto = document.getElementById('userPhoto');
+    const userEmail = document.getElementById('userEmail');
     const logoutBtn = document.getElementById('logoutBtn');
     const signInDiv = document.getElementById('googleSignInButton');
     const adminBtn = document.getElementById('adminBtn');
@@ -126,6 +145,10 @@ window.updateAuthUI = function () {
 
     if (hasUser) {
         if (userPhoto) userPhoto.src = window.currentUser.picture || '';
+        if (userEmail) {
+            userEmail.textContent = window.currentUser.email || '';
+            userEmail.title = window.currentUser.email || '';
+        }
         userInfo?.classList.remove('hidden');
         logoutBtn?.classList.remove('hidden');
         if (adminBtn && window.isAdmin(window.currentUser)) adminBtn.classList.remove('hidden');
@@ -141,7 +164,12 @@ window.updateAuthUI = function () {
         }
     } else {
         userInfo?.classList.add('hidden');
+        if (userEmail) {
+            userEmail.textContent = '';
+            userEmail.removeAttribute('title');
+        }
         logoutBtn?.classList.add('hidden');
+        closeUserMenu();
         if (adminBtn) adminBtn.classList.add('hidden');
         if (signInDiv) {
             signInDiv.classList.remove('hidden');
@@ -187,6 +215,17 @@ window.onload = function () {
     google.accounts.id.prompt();
 
     document.getElementById('logoutBtn')?.addEventListener('click', window.logout);
+    document.getElementById('userMenuButton')?.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleUserMenu();
+    });
+    document.getElementById('userMenuDialog')?.addEventListener('click', event => {
+        event.stopPropagation();
+    });
+    document.addEventListener('click', closeUserMenu);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeUserMenu();
+    });
     document.getElementById('adminBtn')?.addEventListener('click', () => {
         window.location.href = 'admin.html';
     });
