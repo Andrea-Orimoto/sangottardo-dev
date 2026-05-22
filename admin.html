@@ -137,6 +137,10 @@
                         <option value="Venduto">Venduto</option>
                         <option value="Consegnato">Consegnato</option>
                     </select>
+                    <button id="toggleAllBoxesBtn" type="button"
+                        class="px-4 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition">
+                        Apri scatole
+                    </button>
                     <span id="positionSummary" class="text-sm text-gray-500"></span>
                 </div>
             </section>
@@ -169,6 +173,7 @@
         let boxLocationCatalog = {};
         let looseItemLocations = {};
         let positionLoadError = '';
+        let positionBoxesExpanded = false;
         const pendingTagWrites = new Set();
         const stickyReviewIds = new Set();
         const TAG_PAGE_SIZE = 40;
@@ -942,6 +947,7 @@
             const locationOptions = allKnownLocations().map(location =>
                 `<option value="${escapeHtml(location)}" ${getBoxLocation(box) === location ? 'selected' : ''}>${escapeHtml(location)}</option>`
             ).join('');
+            const isOpen = positionBoxesExpanded;
 
             return `
                 <article draggable="true" data-drag-type="box" data-box="${escapeHtml(box)}"
@@ -951,9 +957,9 @@
                         <button type="button"
                                 class="box-toggle flex items-center gap-2 text-xs text-indigo-700 hover:text-indigo-900"
                                 data-box-toggle="${escapeHtml(box)}"
-                                aria-expanded="false">
+                                aria-expanded="${isOpen}">
                             <span>${items.length} oggett${items.length === 1 ? 'o' : 'i'}</span>
-                            <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </button>
@@ -965,12 +971,45 @@
                     </select>
                     <div class="position-drop min-h-[44px] space-y-2 rounded-lg border border-dashed border-indigo-200 bg-white/60 p-2"
                          data-drop-kind="box" data-box="${escapeHtml(box)}">
-                        <p class="box-collapsed-hint text-xs text-gray-500">Trascina oggetti qui o apri la lista.</p>
-                        <div class="box-items hidden space-y-2">
+                        <p class="box-collapsed-hint ${isOpen ? 'hidden' : ''} text-xs text-gray-500">Trascina oggetti qui o apri la lista.</p>
+                        <div class="box-items ${isOpen ? '' : 'hidden'} space-y-2">
                             ${items.map(renderPositionItem).join('') || '<p class="text-xs text-gray-500">Trascina oggetti qui.</p>'}
                         </div>
                     </div>
                 </article>`;
+        }
+
+        function setPositionBoxOpen(article, isOpen) {
+            const itemList = article?.querySelector('.box-items');
+            const hint = article?.querySelector('.box-collapsed-hint');
+            const toggle = article?.querySelector('[data-box-toggle]');
+            const icon = toggle?.querySelector('svg');
+
+            itemList?.classList.toggle('hidden', !isOpen);
+            hint?.classList.toggle('hidden', isOpen);
+            icon?.classList.toggle('rotate-180', isOpen);
+            toggle?.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        function updatePositionBoxesToggleButton() {
+            const button = document.getElementById('toggleAllBoxesBtn');
+            if (!button) return;
+
+            const boxes = Array.from(document.querySelectorAll('#positionsGrid [data-drag-type="box"]'));
+            const hasClosedBox = boxes.some(article => article.querySelector('.box-items')?.classList.contains('hidden'));
+            positionBoxesExpanded = boxes.length > 0 && !hasClosedBox;
+            button.textContent = hasClosedBox ? 'Apri scatole' : 'Chiudi scatole';
+            button.disabled = !boxes.length;
+            button.classList.toggle('opacity-50', !boxes.length);
+            button.classList.toggle('cursor-not-allowed', !boxes.length);
+        }
+
+        function setAllPositionBoxesOpen(isOpen) {
+            positionBoxesExpanded = isOpen;
+            document.querySelectorAll('#positionsGrid [data-drag-type="box"]').forEach(article => {
+                setPositionBoxOpen(article, isOpen);
+            });
+            updatePositionBoxesToggleButton();
         }
 
         function renderLocationCard(location) {
@@ -1035,6 +1074,7 @@
             unassigned.innerHTML = unassignedItems.map(renderPositionItem).join('') || '<p class="text-sm text-gray-500">Nessun oggetto senza posizione.</p>';
             document.getElementById('positionSummary').textContent =
                 `${allKnownBoxes().length} scatole • ${locations.length} location • ${unassignedItems.length} oggetti senza posizione`;
+            updatePositionBoxesToggleButton();
         }
 
         async function saveBoxLocation(box, location) {
@@ -1105,14 +1145,10 @@
                 event.stopPropagation();
                 const article = boxToggle.closest('[data-box]');
                 const itemList = article?.querySelector('.box-items');
-                const hint = article?.querySelector('.box-collapsed-hint');
-                const icon = boxToggle.querySelector('svg');
                 const isOpening = itemList?.classList.contains('hidden');
 
-                itemList?.classList.toggle('hidden', !isOpening);
-                hint?.classList.toggle('hidden', isOpening);
-                icon?.classList.toggle('rotate-180', isOpening);
-                boxToggle.setAttribute('aria-expanded', String(isOpening));
+                setPositionBoxOpen(article, isOpening);
+                updatePositionBoxesToggleButton();
                 return;
             }
 
@@ -1237,6 +1273,11 @@
 
         document.getElementById('positionSearch')?.addEventListener('input', renderPositionsAdmin);
         document.getElementById('positionStatusFilter')?.addEventListener('change', renderPositionsAdmin);
+        document.getElementById('toggleAllBoxesBtn')?.addEventListener('click', () => {
+            const boxes = Array.from(document.querySelectorAll('#positionsGrid [data-drag-type="box"]'));
+            const shouldOpen = boxes.some(article => article.querySelector('.box-items')?.classList.contains('hidden'));
+            setAllPositionBoxesOpen(shouldOpen);
+        });
 
         document.addEventListener('change', async (event) => {
             const boxSelect = event.target.closest('[data-box-location]');
