@@ -371,6 +371,7 @@ window.reloadStatusForCurrentUser = async function () {
   if (allItems.length === 0) return;
   await loadStatusForCurrentUser();
   await loadPositionData();
+  updateStatusFilterCounts();
   displayed = 0;
   renderGrid();
 };
@@ -506,6 +507,42 @@ function matchesStatusFilter(status, statusFilter) {
   if (!statusFilter) return true;
   if (statusFilter === 'Disponibile') return !isUnavailableStatus(status);
   return status === statusFilter;
+}
+
+function matchesSearchAndTagFilters(item) {
+  const q = (document.getElementById('search')?.value || '').toLowerCase().trim();
+  const tags = getItemTags(item);
+  const box = getItemBox(item);
+  const adminPositionTerms = isCurrentAdmin() ? [box, getBoxLocation(box), getLooseItemLocation(item)] : [];
+  const searchText = [item.Item, item.Location, item.Notes, item['Serial No'], ...adminPositionTerms, ...tags].join(' ').toLowerCase();
+  const matchSearch = !q || searchText.includes(q);
+  const matchTags = !selectedTags.size || tags.includes([...selectedTags][0]);
+
+  return matchSearch && matchTags;
+}
+
+function updateStatusFilterCounts() {
+  const statusSel = document.getElementById('statusFilter');
+  if (!statusSel) return;
+
+  const currentValue = statusSel.value;
+  const baseItems = allItems.filter(matchesSearchAndTagFilters);
+  const statuses = [
+    { value: '', label: 'Tutti gli stati' },
+    { value: 'Disponibile', label: 'Disponibile' },
+    { value: 'Venduto', label: 'Venduto' },
+    { value: 'Consegnato', label: 'Consegnato' }
+  ];
+
+  statusSel.innerHTML = statuses.map(({ value, label }) => {
+    const count = value
+      ? baseItems.filter(item => matchesStatusFilter(getItemStatus(item), value)).length
+      : baseItems.length;
+
+    return `<option value="${value}">${label} (${count})</option>`;
+  }).join('');
+
+  statusSel.value = currentValue;
 }
 
 function renderStatusBadge(item) {
@@ -923,20 +960,13 @@ function formatPrice(item) {
 }
 
 function filterItems() {
-  const q = (document.getElementById('search').value || '').toLowerCase().trim();
   const statusFilter = document.getElementById('statusFilter')?.value || '';
 
   return allItems.filter(item => {
-    const tags = getItemTags(item);
-    const box = getItemBox(item);
-    const adminPositionTerms = isCurrentAdmin() ? [box, getBoxLocation(box), getLooseItemLocation(item)] : [];
-    const searchText = [item.Item, item.Location, item.Notes, item['Serial No'], ...adminPositionTerms, ...tags].join(' ').toLowerCase();
-    const matchSearch = !q || searchText.includes(q);
-    const matchTags = !selectedTags.size || tags.includes([...selectedTags][0]);
-
+    const matchSearchAndTags = matchesSearchAndTagFilters(item);
     const matchStatus = matchesStatusFilter(getItemStatus(item), statusFilter);
 
-    return matchSearch && matchTags && matchStatus;
+    return matchSearchAndTags && matchStatus;
   });
 }
 
@@ -949,9 +979,9 @@ function setupCategoryFiltersLegacy() {
     statusSel = document.createElement('select');
     statusSel.id = 'statusFilter';
     statusSel.className = 'ml-2 p-2 border rounded';
-    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option><option value="Consegnato">Consegnato</option>`;
     document.querySelector('#filters').appendChild(statusSel);
   }
+  updateStatusFilterCounts();
 
   function updateCategoryCounts() {
     const currentStatus = statusSel.value;
@@ -983,6 +1013,7 @@ function setupCategoryFiltersLegacy() {
 
   // Listener per Status — ricalcola categorie
   statusSel.addEventListener('change', () => {
+    updateStatusFilterCounts();
     displayed = 0;
     renderGrid();
     updateCategoryCounts();
@@ -993,6 +1024,7 @@ function setupCategoryFiltersLegacy() {
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
+      updateStatusFilterCounts();
       displayed = 0;
       renderGrid();
       updateCategoryCounts();
@@ -1040,6 +1072,7 @@ function setupCategoryFiltersLegacy() {
       renderGrid();
 
       // Aggiorna i conteggi delle categorie
+      updateStatusFilterCounts();
       updateCategoryCounts();
 
       // Pulisci l'URL
@@ -1056,13 +1089,14 @@ function setupFilters() {
     statusSel = document.createElement('select');
     statusSel.id = 'statusFilter';
     statusSel.className = 'p-2 border rounded';
-    statusSel.innerHTML = `<option value="">All Status</option><option value="Disponibile">Disponibile</option><option value="Venduto">Venduto</option><option value="Consegnato">Consegnato</option>`;
   }
 
   const clearBtn = document.getElementById('clearFilters');
   clearBtn.parentNode.insertBefore(statusSel, clearBtn);
+  updateStatusFilterCounts();
 
   statusSel.addEventListener('change', () => {
+    updateStatusFilterCounts();
     displayed = 0;
     renderGrid();
     renderTagCloud();
@@ -1072,6 +1106,7 @@ function setupFilters() {
   document.getElementById('search').addEventListener('input', () => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
+      updateStatusFilterCounts();
       displayed = 0;
       renderGrid();
       renderTagCloud();
@@ -1083,6 +1118,7 @@ function setupFilters() {
   if (urlTag) {
     selectedTags = new Set([urlTag]);
     saveFilterState();
+    updateStatusFilterCounts();
   }
 
   if (clearBtn) {
@@ -1092,6 +1128,7 @@ function setupFilters() {
       saveFilterState();
       document.getElementById('search').value = '';
 
+      updateStatusFilterCounts();
       displayed = 0;
       renderGrid();
       renderTagCloud();
@@ -1165,6 +1202,7 @@ function toggleTagFilter(tag) {
   else selectedTags = new Set([normalized]);
 
   saveFilterState();
+  updateStatusFilterCounts();
   displayed = 0;
   renderTagCloud();
   renderGrid();
@@ -1178,6 +1216,7 @@ function toggleTagFilter(tag) {
 function clearTagFilters() {
   selectedTags.clear();
   saveFilterState();
+  updateStatusFilterCounts();
   displayed = 0;
   renderTagCloud();
   renderGrid();
