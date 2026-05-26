@@ -18,6 +18,24 @@ if (saved) {
     }
 }
 
+function isAdminPage() {
+    return window.location.pathname.includes('admin.html');
+}
+
+window.isAdminRedirecting = false;
+
+function redirectNonAdminFromAdminPage() {
+    if (!isAdminPage()) return false;
+    if (window.currentUser && window.isAdmin(window.currentUser)) return false;
+
+    window.isAdminRedirecting = true;
+    document.documentElement.style.display = 'none';
+    window.location.replace('index.html');
+    return true;
+}
+
+redirectNonAdminFromAdminPage();
+
 function firebaseUser() {
     return typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null;
 }
@@ -47,10 +65,6 @@ window.waitForFirebaseAdminAuth = function (timeoutMs = 3000) {
         const timer = setTimeout(() => finish(window.hasFirebaseAdminAuth()), timeoutMs);
     });
 };
-
-function isAdminPage() {
-    return window.location.pathname.includes('admin.html');
-}
 
 function renderGoogleButton(signInDiv, text = 'signin_with') {
     if (!signInDiv || !window.google?.accounts?.id) return;
@@ -190,19 +204,15 @@ window.requireFirebaseAdminAuth = function () {
 };
 
 window.onload = function () {
+    if (window.isAdminRedirecting) return;
+
     google.accounts.id.initialize({
         client_id: '1049409960184-lt0jqecoman6nmnfgc94ntss04vemur2.apps.googleusercontent.com',
         callback: handleCredentialResponse
     });
 
     if (isAdminPage()) {
-        if (!window.currentUser) {
-            window.location.href = 'index.html';
-            return;
-        }
-        if (!window.isAdmin(window.currentUser)) {
-            alert('Accesso negato: non sei admin');
-            window.location.href = 'index.html';
+        if (redirectNonAdminFromAdminPage()) {
             return;
         }
     }
